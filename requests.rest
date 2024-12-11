@@ -1,0 +1,56 @@
+GET http://localhost:8080/api/product
+
+###
+
+GET http://localhost:8080/api/product/67551e8ed0199c4d138a1b9c
+
+###
+
+PATCH  http://localhost:8080/api/product/6755287d343dd711093cc301
+Content-Type:  application/json
+
+{
+    "productPrice": 17000,
+    "productImage": "89sd9fyauhrjw8edhfs"
+}
+
+###
+
+DELETE http://localhost:8080/api/product/675805eccf402d08bffdaf27
+
+###
+
+GET http://localhost:8080/api/user
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzU5NmI4ZTYyYjU5ZDk2ZGIxZWJlNjUiLCJpYXQiOjE3MzM5MTQxNTksImV4cCI6MTczMzkxNDIxOX0.hUY0xNwEpGvXC7dYgxAZ-xEhMJHhxWKRNX_I1N44mDQ
+
+###
+
+POST http://localhost:8080/api/user
+Content-Type: application/json
+
+{
+    "username": "nigga",
+    "useremail": "nigga@gmail.com",
+    "password": "nigga2"
+}
+
+###
+
+POST http://localhost:8080/api/user/login
+Content-Type: application/json
+
+{
+    "useremail": "nigga@gmail.com",
+    "password": "nigga2"
+}
+
+###
+
+GET http://localhost:8080/api/user/refresh-token
+
+###
+
+DELETE http://localhost:8080/api/user/logout
+
+###
+DELETE http://localhost:8080/api/user/6756a2c31b2f552601151aea
