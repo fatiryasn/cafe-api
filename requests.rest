@@ -1,41 +1,31 @@
 GET http://localhost:8080/api/product
-
 ###
-
 GET http://localhost:8080/api/product/67551e8ed0199c4d138a1b9c
-
 ###
-
 PATCH  http://localhost:8080/api/product/6755287d343dd711093cc301
 Content-Type:  application/json
-
 {
     "productPrice": 17000,
     "productImage": "89sd9fyauhrjw8edhfs"
 }
-
 ###
-
 DELETE http://localhost:8080/api/product/675805eccf402d08bffdaf27
 
-###
 
+
+### user
 GET http://localhost:8080/api/user
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzU5NmI4ZTYyYjU5ZDk2ZGIxZWJlNjUiLCJpYXQiOjE3MzM5MTQxNTksImV4cCI6MTczMzkxNDIxOX0.hUY0xNwEpGvXC7dYgxAZ-xEhMJHhxWKRNX_I1N44mDQ
-
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3MzM5OTg3NzMsImV4cCI6MTczMzk5ODgzM30.HiB0dFVjHjRKUHeHQDvw9bTTjqZ53y2jsbc_Sbq0sc8
 ###
-
 POST http://localhost:8080/api/user
 Content-Type: application/json
 
 {
-    "username": "nigga",
-    "useremail": "nigga@gmail.com",
-    "password": "nigga2"
+    "username": "fatir",
+    "useremail": "fatir@gmail.com",
+    "password": "fatir123"
 }
-
 ###
-
 POST http://localhost:8080/api/user/login
 Content-Type: application/json
 
@@ -43,14 +33,26 @@ Content-Type: application/json
     "useremail": "nigga@gmail.com",
     "password": "nigga2"
 }
-
 ###
-
-GET http://localhost:8080/api/user/refresh-token
-
-###
-
 DELETE http://localhost:8080/api/user/logout
-
 ###
 DELETE http://localhost:8080/api/user/6756a2c31b2f552601151aea
+
+###
+GET http://localhost:8080/api/user/refresh-token
+
+
+### comment
+GET http://localhost:8080/api/comment
+###
+
+POST http://localhost:8080/api/comment
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NzVhYzUyNzhlNjFjNjJmMjAyNWYwNmIiLCJpYXQiOjE3MzQwMDE5NjIsImV4cCI6MTczNDAwMjAyMn0.nNhSXJ4pQu8MpYGv6mHD3bSXQhXl0EcFQVZ1UlidyS0
+
+{
+    "comment": "fatir commented"
+}
+###
+DELETE http://localhost:8080/api/comment/675abcd59c64c261cafcf8a6
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NzVhYjM0YzA0MDBkZmMxM2IxOTI0NDUiLCJpYXQiOjE3MzQwMDIwMzAsImV4cCI6MTczNDAwMjA5MH0.1hWDidFePiFgiGDU8Dtp5b7Joaur4czilcZamkhxH9Q

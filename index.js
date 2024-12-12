@@ -6,6 +6,7 @@ const dbConnect = require('./dbConnect')
 
 const productRoute = require('./routes/productRoute')
 const userRoute = require('./routes/userRoute')
+const commentRoute = require('./routes/commentRoute')
 
 const app = express()
 const port = process.env.PORT || 8080
@@ -14,6 +15,7 @@ app.use(cookieParser())
 app.use(cors({ credentials: true}))
 app.use('/api', productRoute)
 app.use('/api', userRoute)
+app.use("/api", commentRoute);
 app.use("/uploads", express.static("uploads"));
 dbConnect()
 
