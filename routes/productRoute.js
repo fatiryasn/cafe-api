@@ -44,6 +44,7 @@ router.get("/product", async (req, res) => {
 
     const query = {...selectedCat, ...searchVal}
     const collation = { locale: "en", strength: 2 };
+    const dataCount = await Product.countDocuments(query)
 
     const products = await Product.find( query )
     .sort(sort)
@@ -56,9 +57,9 @@ router.get("/product", async (req, res) => {
     }
     return res.status(200).json({
       data: products,
-      dataCount: await Product.countDocuments(query),
+      dataCount: dataCount,
       currentPage: page,
-      totalPages: await Math.ceil(await Product.countDocuments(query) / selectedLimit)
+      totalPages: await Math.ceil(dataCount / selectedLimit)
     });
   } catch (err) { 
     res.status(500).json({ message: err.message });
