@@ -11,7 +11,6 @@ const commentRoute = require('./routes/commentRoute')
 const app = express()
 const port = process.env.PORT || 8080
 app.use(express.json())
-app.use("/uploads", express.static("uploads"));
 app.use(cookieParser())
 app.use(cors({ credentials: true}))
 app.use('/api', productRoute)
