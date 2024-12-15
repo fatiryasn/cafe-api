@@ -7,6 +7,7 @@ const dbConnect = require('./dbConnect')
 const productRoute = require('./routes/productRoute')
 const userRoute = require('./routes/userRoute')
 const commentRoute = require('./routes/commentRoute')
+const orderRoute = require('./routes/orderRoute')
 
 const app = express()
 const port = process.env.PORT || 8080
@@ -16,6 +17,7 @@ app.use(cors({ credentials: true}))
 app.use('/api', productRoute)
 app.use('/api', userRoute)
 app.use("/api", commentRoute);
+app.use("/api", orderRoute)
 dbConnect()
 
 app.get('/', (req, res) => {

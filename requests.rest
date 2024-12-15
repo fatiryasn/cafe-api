@@ -1,22 +1,12 @@
-GET http://localhost:8080/api/product
-###
-GET http://localhost:8080/api/product/67551e8ed0199c4d138a1b9c
-###
-PATCH  http://localhost:8080/api/product/6755287d343dd711093cc301
-Content-Type:  application/json
-{
-    "productPrice": 17000,
-    "productImage": "89sd9fyauhrjw8edhfs"
-}
-###
-DELETE http://localhost:8080/api/product/675805eccf402d08bffdaf27
-
-
 
 ### user
+#get users
 GET http://localhost:8080/api/user
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3MzM5OTg3NzMsImV4cCI6MTczMzk5ODgzM30.HiB0dFVjHjRKUHeHQDvw9bTTjqZ53y2jsbc_Sbq0sc8
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NzVhYzUyNzhlNjFjNjJmMjAyNWYwNmIiLCJpYXQiOjE3MzQyNDAyNzMsImV4cCI6MTczNDI0MDMzM30.MCUdNejXQ2BJGLPVX5iL0T5IXUbJyaN4hSOssxr_O8g
+
+
 ###
+#register
 POST http://localhost:8080/api/user
 Content-Type: application/json
 
@@ -25,21 +15,41 @@ Content-Type: application/json
     "useremail": "fatir@gmail.com",
     "password": "fatir123"
 }
+
+
 ###
+#login
 POST http://localhost:8080/api/user/login
 Content-Type: application/json
 
 {
-    "useremail": "nigga@gmail.com",
-    "password": "nigga2"
+    "useremail": "fatir@gmail.com",
+    "password": "fatir123"
 }
-###
-DELETE http://localhost:8080/api/user/logout
-###
-DELETE http://localhost:8080/api/user/6756a2c31b2f552601151aea
+
 
 ###
+#user profile
+GET http://localhost:8080/api/user/profile
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NzVhYjM0YzA0MDBkZmMxM2IxOTI0NDUiLCJpYXQiOjE3MzQyNDAwMDksImV4cCI6MTczNDI0MDA2OX0.S8mr-CwlNpj0FxHvC7VHo5XPdL5ZYEceEor7AsYM3TE
+
+
+###
+#logout
+POST http://localhost:8080/api/user/logout
+
+
+###
+#delete user
+DELETE http://localhost:8080/api/user/675ab34c0400dfc13b192445
+
+###
+#refresh token
 GET http://localhost:8080/api/user/refresh-token
+
+
+
+
 
 
 ### comment
@@ -48,11 +58,32 @@ GET http://localhost:8080/api/comment
 
 POST http://localhost:8080/api/comment
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NzVhYzUyNzhlNjFjNjJmMjAyNWYwNmIiLCJpYXQiOjE3MzQwMDE5NjIsImV4cCI6MTczNDAwMjAyMn0.nNhSXJ4pQu8MpYGv6mHD3bSXQhXl0EcFQVZ1UlidyS0
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NzVhYzUyNzhlNjFjNjJmMjAyNWYwNmIiLCJpYXQiOjE3MzQyNDA5NjIsImV4cCI6MTczNDI0MTAyMn0.f5YlwElCq2K5ZN3sHiLBCjlRNzYQM04xRnluF_UJQeU
 
 {
     "comment": "fatir commented"
 }
 ###
 DELETE http://localhost:8080/api/comment/675abcd59c64c261cafcf8a6
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NzVhYjM0YzA0MDBkZmMxM2IxOTI0NDUiLCJpYXQiOjE3MzQwMDIwMzAsImV4cCI6MTczNDAwMjA5MH0.1hWDidFePiFgiGDU8Dtp5b7Joaur4czilcZamkhxH9Q
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NzVhYzUyNzhlNjFjNjJmMjAyNWYwNmIiLCJpYXQiOjE3MzQyNDE0ODUsImV4cCI6MTczNDI0MTU0NX0.W0WMPjiUhZH2TsFLqkkObMrBN840D9sYZ9hCt4AofUs
+
+
+
+
+
+### order
+#create transaction
+POST http://localhost:8080/api/order
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NzVhYzUyNzhlNjFjNjJmMjAyNWYwNmIiLCJpYXQiOjE3MzQyNDE0ODUsImV4cCI6MTczNDI0MTU0NX0.W0WMPjiUhZH2TsFLqkkObMrBN840D9sYZ9hCt4AofUs
+
+{
+    "products":[
+        {
+            "productId": "6758099828363f5fd538158a",
+            "quantity": 1,
+            "price": 18000
+        }
+    ],
+    "totalAmount": 18000
+}
