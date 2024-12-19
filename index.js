@@ -13,7 +13,7 @@ const app = express()
 const port = process.env.PORT || 8080
 app.use(express.json())
 app.use(cookieParser())
-app.use(cors({ credentials: true}))
+app.use(cors({ credentials: true, origin: true}))
 app.use('/api', productRoute)
 app.use('/api', userRoute)
 app.use("/api", commentRoute);

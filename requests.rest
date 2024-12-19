@@ -2,7 +2,7 @@
 ### user
 #get users
 GET http://localhost:8080/api/user
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NzVhYzUyNzhlNjFjNjJmMjAyNWYwNmIiLCJpYXQiOjE3MzQyNDAyNzMsImV4cCI6MTczNDI0MDMzM30.MCUdNejXQ2BJGLPVX5iL0T5IXUbJyaN4hSOssxr_O8g
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NzVhYzUyNzhlNjFjNjJmMjAyNWYwNmIiLCJ1c2VybmFtZSI6ImZhdGlyIiwidXNlcmVtYWlsIjoiZmF0aXJAZ21haWwuY29tIiwiaWF0IjoxNzM0NDM4Njg4LCJleHAiOjE3MzQ0Mzg3NDh9._kKxcO9dCpD0rtZ0m2HWsuZSQQRBOh_RK-28pwVWlQs
 
 
 ###
@@ -11,15 +11,16 @@ POST http://localhost:8080/api/user
 Content-Type: application/json
 
 {
-    "username": "fatir",
-    "useremail": "fatir@gmail.com",
-    "password": "fatir123"
+    "username": "Admin1",
+    "useremail": "admincafe@test.com",
+    "password": "admincafe123",
+    "role": "admin"
 }
 
 
 ###
 #login
-POST http://localhost:8080/api/user/login
+POST http://localhost:8080/api/login
 Content-Type: application/json
 
 {
@@ -29,14 +30,8 @@ Content-Type: application/json
 
 
 ###
-#user profile
-GET http://localhost:8080/api/user/profile
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NzVhYjM0YzA0MDBkZmMxM2IxOTI0NDUiLCJpYXQiOjE3MzQyNDAwMDksImV4cCI6MTczNDI0MDA2OX0.S8mr-CwlNpj0FxHvC7VHo5XPdL5ZYEceEor7AsYM3TE
-
-
-###
 #logout
-POST http://localhost:8080/api/user/logout
+DELETE http://localhost:8080/api/logout
 
 
 ###
@@ -45,7 +40,7 @@ DELETE http://localhost:8080/api/user/675ab34c0400dfc13b192445
 
 ###
 #refresh token
-GET http://localhost:8080/api/user/refresh-token
+GET http://localhost:8080/api/token
 
 
 
@@ -75,7 +70,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NzVhYzUyN
 #create transaction
 POST http://localhost:8080/api/order
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NzVhYzUyNzhlNjFjNjJmMjAyNWYwNmIiLCJpYXQiOjE3MzQyNDE0ODUsImV4cCI6MTczNDI0MTU0NX0.W0WMPjiUhZH2TsFLqkkObMrBN840D9sYZ9hCt4AofUs
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NzVhYzUyNzhlNjFjNjJmMjAyNWYwNmIiLCJpYXQiOjE3MzQyNTQyOTgsImV4cCI6MTczNDI1NDM1OH0.iTdSr4BjV9RH-a57hYnTRV1E6EUiNgTVMOshO184iIk
 
 {
     "products":[

@@ -3,6 +3,7 @@ const fs = require('fs')
 const Product = require("../models/productModel");
 const cloudinary = require('../utils/cloudinary');
 const upload = require('../utils/multer')
+const verifyToken = require('../middleware/verifyToken')
 
 //get all products
 router.get("/product", async (req, res) => {
@@ -87,7 +88,7 @@ router.get("/product/:id", async (req, res) => {
 
 
 //create product
-router.post("/product", upload.single("image"), async (req, res) => {
+router.post("/product", verifyToken("admin"), upload.single("image"), async (req, res) => {
   try {
     const {productName, productDescription, productPrice, productCategory, productStock} = req.body;
 
@@ -130,7 +131,7 @@ router.post("/product", upload.single("image"), async (req, res) => {
 
 
 //update one product
-router.patch("/product/:id", upload.single("image"), async (req, res) => {
+router.patch("/product/:id", verifyToken("admin"), upload.single("image"), async (req, res) => {
   try {
     const productId = req.params.id;
     const { productName, productDescription, productPrice, productCategory, productStock } = req.body;
@@ -176,7 +177,7 @@ router.patch("/product/:id", upload.single("image"), async (req, res) => {
 
 
 // delete one product
-router.delete("/product/:id", async (req, res) => {
+router.delete("/product/:id", verifyToken("admin"), async (req, res) => {
   try {
     const productId = req.params.id;
     const product = await Product.findById(productId);

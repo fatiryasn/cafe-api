@@ -99,7 +99,7 @@ router.post("/user", async (req, res) => {
 });
 
 //login
-router.post("/user/login", async (req, res) => {
+router.post("/login", async (req, res) => {
   try {
     const { useremail, password } = req.body;
 
@@ -116,8 +116,8 @@ router.post("/user/login", async (req, res) => {
       return res.status(401).json({ message: "Password is incorrect" });
     }
 
-    const accessToken = createAccessToken(user._id);
-    const refreshToken = createRefreshToken(user._id);
+    const accessToken = createAccessToken(user._id, user.username, user.useremail, user.role);
+    const refreshToken = createRefreshToken(user._id, user.username, user.useremail, user.role);
     await User.updateOne({ _id: user._id }, { refreshToken: refreshToken });
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
@@ -146,40 +146,28 @@ router.delete("/user/:id", async (req, res) => {
   }
 });
 
-//get user profile
-router.get("/user/profile", verifyToken, async (req, res) => {
-  try {
-    const userId = req.user._id
-    const user = await User.findById(userId)
-    if(!user){
-      return res.status(404).json({message: "No user found"})
-    }
-    res.status(200).json({
-      data: user
-    })
-  } catch (error) {
-    res.status(500).json({message: error.message})
-  }
-})
 
 //refresh token
-router.get("/user/refresh-token", async (req, res) => {
+router.get("/token", async (req, res) => {
   try {
     const refreshToken = req.cookies.refreshToken;
     if (!refreshToken) return res.sendStatus(401);
 
-    jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, (err, user) => {
+    const user = await User.findOne({refreshToken: refreshToken})
+    if(!user) return res.status(403)
+
+    jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, (err, decoded) => {
       if (err) return res.sendStatus(403);
-      const newAccessToken = createAccessToken(user._id);
+      const newAccessToken = createAccessToken(user._id, user.username, user.useremail, user.role);
       res.json({ accessToken: newAccessToken });
-    });
+    }); 
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
 //logout route
-router.post('/user/logout', async (req, res) => {
+router.delete('/logout', async (req, res) => {
   const refreshToken = req.cookies.refreshToken;
   if (!refreshToken) return res.sendStatus(401); 
 
