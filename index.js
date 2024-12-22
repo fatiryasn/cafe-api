@@ -8,16 +8,20 @@ const productRoute = require('./routes/productRoute')
 const userRoute = require('./routes/userRoute')
 const commentRoute = require('./routes/commentRoute')
 const orderRoute = require('./routes/orderRoute')
+const reservationRoute = require('./routes/reservationRoute')
+const tableRoute = require('./routes/tableRoute')
 
 const app = express()
 const port = process.env.PORT || 8080
 app.use(express.json())
 app.use(cookieParser())
-app.use(cors({ credentials: true, origin: true}))
+app.use(cors({credentials: true, origin: true}))
 app.use('/api', productRoute)
 app.use('/api', userRoute)
 app.use("/api", commentRoute);
 app.use("/api", orderRoute)
+app.use("/api", tableRoute)
+app.use("/api", reservationRoute)
 dbConnect()
 
 app.get('/', (req, res) => {

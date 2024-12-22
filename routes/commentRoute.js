@@ -17,7 +17,7 @@ router.get('/comment', async (req, res) => {
             default:
                 sort = {_id : 1}
         }
-        const comments = await Comment.find().sort(sort) 
+        const comments = await Comment.find().sort(sort).populate('userId', 'username') 
         if (!comments || comments.length <= 0){
             return res.status(404).json({message: "No comment found"})
         }
@@ -31,7 +31,7 @@ router.get('/comment', async (req, res) => {
 })
 
 //create comment
-router.post('/comment', verifyToken, async (req, res) => {
+router.post('/comment', verifyToken(), async (req, res) => {
     try {
         const userId = req.user._id
         const commented = await Comment.findOne({userId: userId})
@@ -60,7 +60,7 @@ router.post('/comment', verifyToken, async (req, res) => {
 })
 
 //delete comment
-router.delete('/comment/:id', verifyToken, async (req, res) => {
+router.delete('/comment/:id', verifyToken(), async (req, res) => {
     try {
         const commentId = req.params.id
         const comment = await Comment.findById(commentId)

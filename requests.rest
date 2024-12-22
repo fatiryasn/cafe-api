@@ -2,7 +2,7 @@
 ### user
 #get users
 GET http://localhost:8080/api/user
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NzVhYzUyNzhlNjFjNjJmMjAyNWYwNmIiLCJ1c2VybmFtZSI6ImZhdGlyIiwidXNlcmVtYWlsIjoiZmF0aXJAZ21haWwuY29tIiwiaWF0IjoxNzM0NDM4Njg4LCJleHAiOjE3MzQ0Mzg3NDh9._kKxcO9dCpD0rtZ0m2HWsuZSQQRBOh_RK-28pwVWlQs
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NzVhYzUyNzhlNjFjNjJmMjAyNWYwNmIiLCJ1c2VybmFtZSI6ImZhdGlyIiwidXNlcmVtYWlsIjoiZmF0aXJAZ21haWwuY29tIiwicm9sZSI6ImN1c3RvbWVyIiwiaWF0IjoxNzM0NjU5MDYxLCJleHAiOjE3MzQ2NTk2NjF9.y_YxxJoRG_wY39oa8WDWqsvKasagDnWRgHBPkLL68vg
 
 
 ###
@@ -24,8 +24,8 @@ POST http://localhost:8080/api/login
 Content-Type: application/json
 
 {
-    "useremail": "fatir@gmail.com",
-    "password": "fatir123"
+    "useremail": "admincafe@test.com",
+    "password": "admincafe123"
 }
 
 
@@ -56,7 +56,7 @@ Content-Type: application/json
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NzVhYzUyNzhlNjFjNjJmMjAyNWYwNmIiLCJpYXQiOjE3MzQyNDA5NjIsImV4cCI6MTczNDI0MTAyMn0.f5YlwElCq2K5ZN3sHiLBCjlRNzYQM04xRnluF_UJQeU
 
 {
-    "comment": "fatir commented"
+    "comment": "comment #2"
 }
 ###
 DELETE http://localhost:8080/api/comment/675abcd59c64c261cafcf8a6
@@ -70,15 +70,57 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NzVhYzUyN
 #create transaction
 POST http://localhost:8080/api/order
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NzVhYzUyNzhlNjFjNjJmMjAyNWYwNmIiLCJpYXQiOjE3MzQyNTQyOTgsImV4cCI6MTczNDI1NDM1OH0.iTdSr4BjV9RH-a57hYnTRV1E6EUiNgTVMOshO184iIk
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NzVhYzUyNzhlNjFjNjJmMjAyNWYwNmIiLCJ1c2VybmFtZSI6ImZhdGlyIiwidXNlcmVtYWlsIjoiZmF0aXJAZ21haWwuY29tIiwicm9sZSI6ImN1c3RvbWVyIiwiaWF0IjoxNzM0NjYwOTc4LCJleHAiOjE3MzQ2NjE1Nzh9.O-l34Jo8kbOLFoNckZRVrxkvxoNExa9d0uwUx9rG1x4
 
-{
+{ 
     "products":[
         {
-            "productId": "6758099828363f5fd538158a",
+            "productId": "67580a1828363f5fd538158c",
             "quantity": 1,
-            "price": 18000
+            "price": 17000
+        },
+        {
+            "productId": "67580f0328363f5fd5381595",
+            "quantity": 1,
+            "price": 21000
         }
     ],
-    "totalAmount": 18000
+    "totalAmount": 38000
+}
+
+
+
+###
+POST http://localhost:8080/api/table
+Content-Type: application/json
+
+{
+    "tableNumber": 10,
+    "capacity": 4
+}
+
+###
+GET http://localhost:8080/api/reservation
+###
+POST http://localhost:8080/api/reservation
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NzVhYzUyNzhlNjFjNjJmMjAyNWYwNmIiLCJ1c2VybmFtZSI6ImZhdGlyIiwidXNlcmVtYWlsIjoiZmF0aXJAZ21haWwuY29tIiwicm9sZSI6ImN1c3RvbWVyIiwiaWF0IjoxNzM0NjY0MjYyLCJleHAiOjE3MzQ2NjQ4NjJ9.d0T3hLL3QXMZxZO5qvS8C9BaXOZUNsAdWuRTE8M9gTw
+
+{
+    "tableId": "676422a45c7227b6884e3b4a",
+    "reservationDate": "21/12/2024",
+    "reservationTime": "12:00",
+    "notes": "Make it clean"
+}
+
+###
+DELETE http://localhost:8080/api/reservation/6764e0ebf101af03bfe61e36
+
+
+###
+PATCH http://localhost:8080/api/table/6764229b5c7227b6884e3b46
+Content-Type: application/json
+
+{
+    "status": "Available"
 }

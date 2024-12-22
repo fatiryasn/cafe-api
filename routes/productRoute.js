@@ -9,7 +9,7 @@ const verifyToken = require('../middleware/verifyToken')
 router.get("/product", async (req, res) => {
   try {
     const search = req.query.search || ""
-    const category = req.query.category || ""
+    const category = req.query.category || "" 
     const page = parseInt(req.query.page) || 1
     const limit = parseInt(req.query.limit) || 10 
     let sort = req.query.sort || 'default'
@@ -37,7 +37,7 @@ router.get("/product", async (req, res) => {
     //category handling
     const catOptions = ["drink", "food", "other"]
     const selectedCat = catOptions.includes(category) && search === "" ? {productCategory : category} : {}
-
+   
     //search handling
     const searchVal = search ? {
       $or: [
