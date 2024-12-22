@@ -1,6 +1,23 @@
 const router = require('express').Router()
 const Table = require('../models/tableModel')
 
+
+//get all tables
+router.get('/table', async (req, res) => {
+    try {
+        const tables = await Table.find()
+        if (!tables || tables.length <= 0){
+            return res.status(404).json({message: "No table found"})
+        }
+
+        return res.status(200).json({
+            data: tables
+        })
+    } catch (error) {
+        res.status(500).json({message: error.message})
+    }
+})
+
 //create new table
 router.post('/table', async (req, res) => {
     try {
