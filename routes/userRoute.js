@@ -120,6 +120,7 @@ router.post("/login", async (req, res) => {
     const refreshToken = createRefreshToken(user._id, user.username, user.useremail, user.role);
     await User.updateOne({ _id: user._id }, { refreshToken: refreshToken });
     res.cookie("refreshToken", refreshToken, {
+      secure: true,
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000,
     });

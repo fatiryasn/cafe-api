@@ -124,3 +124,6 @@ Content-Type: application/json
 {
     "status": "Available"
 }
+
+###
+GET https://cafemdn-api.vercel.app/api/table
