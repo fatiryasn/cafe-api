@@ -27,14 +27,12 @@ router.get("/reservation", async (req, res) => {
     const statusOptions = ["Pending", "Confirmed", "Cancelled"];
     const filterStatus = statusOptions.includes(status) ? { status } : {};
 
-    // Fetch reservations with filters and sorting
     const reservations = await Reservation.find(filterStatus)
       .sort(sort)
       .populate("userId", "username useremail")
       .populate("tableId", "tableNumber capacity")
       .exec();
 
-    // Check if reservations exist
     if (!reservations || reservations.length === 0) {
       return res.status(404).json({ message: "No reservations found" });
     }

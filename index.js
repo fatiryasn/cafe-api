@@ -10,6 +10,7 @@ const commentRoute = require('./routes/commentRoute')
 const orderRoute = require('./routes/orderRoute')
 const reservationRoute = require('./routes/reservationRoute')
 const tableRoute = require('./routes/tableRoute')
+const commonRoute = require('./routes/commonRoute')
 
 const app = express()
 const port = process.env.PORT || 8080
@@ -22,6 +23,7 @@ app.use("/api", commentRoute);
 app.use("/api", orderRoute)
 app.use("/api", tableRoute)
 app.use("/api", reservationRoute)
+app.use("/api", commonRoute)
 dbConnect()
 
 app.get('/', (req, res) => {

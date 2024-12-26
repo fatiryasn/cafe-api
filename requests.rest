@@ -127,3 +127,6 @@ Content-Type: application/json
 
 ###
 GET https://cafemdn-api.vercel.app/api/table
+
+###
+GET http://localhost:8080/api/all-data-count
