@@ -11,7 +11,7 @@ const productSchema = new mongoose.Schema({
         type: String,
         required: true,
         trim: true,
-        maxLength: 100
+        maxLength: 120
     },
     productPrice:{
         type: Number,
@@ -27,11 +27,10 @@ const productSchema = new mongoose.Schema({
         enum: ['drink', 'food', 'other'],
         required: true
     },
-    productStock:{
-        type: Number,
+    isAvailable:{
+        type: String,
+        enum: ['Available', 'Unavailable'],
         required: true,
-        default: 0,
-        min: 0
     }
 },
     {timestamps: true}

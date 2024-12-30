@@ -4,15 +4,22 @@ const userSchema = new mongoose.Schema({
     username: {
         type: String,
         required: true,
+        maxLength: 20
     },
     useremail: {
         type: String, 
         required: true,
-        unique: true
+        unique: true,
+        maxLength: 35
+    },
+    phoneNumber: {
+        type: String,
+        maxLength: 14
     },
     password: {
         type: String,
         required: true,
+        maxLength: 15
     },
     role: {
         type: String,

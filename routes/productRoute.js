@@ -90,18 +90,18 @@ router.get("/product/:id", async (req, res) => {
 //create product
 router.post("/product", verifyToken("admin"), upload.single("image"), async (req, res) => {
   try {
-    const {productName, productDescription, productPrice, productCategory, productStock} = req.body;
+    const {productName, productDescription, productPrice, productCategory, isAvailable} = req.body;
 
-    if ( !productName || !productDescription || !productPrice || !productCategory || !productStock ) {
+    if ( !productName || !productDescription || !productPrice || !productCategory || !isAvailable ) {
       return res.status(400).json({ message: "Request is incomplete" });
     }
     if (!req.file) {
       return res.status(400).json({ message: "Image upload failed" });
     }
-    if (productPrice < 0 || productStock < 0) {
+    if (productPrice < 0) {
       return res
         .status(400)
-        .json({ message: "Price or Stock must not be negative" });
+        .json({ message: "Price must not be negative" });
     }
 
     const result = await cloudinary.uploader.upload(req.file.path, {
@@ -115,7 +115,7 @@ router.post("/product", verifyToken("admin"), upload.single("image"), async (req
       productPrice,
       productImagePath: result.secure_url,
       productCategory,
-      productStock,
+      isAvailable,
     };
 
     const product = await Product.create(newProduct);
@@ -131,13 +131,18 @@ router.post("/product", verifyToken("admin"), upload.single("image"), async (req
 
 
 //update one product
-router.patch("/product/:id", verifyToken("admin"), upload.single("image"), async (req, res) => {
+router.put("/product/:id", verifyToken("admin"), upload.single("image"), async (req, res) => {
   try {
     const productId = req.params.id;
-    const { productName, productDescription, productPrice, productCategory, productStock } = req.body;
+    const { productName, productDescription, productPrice, productCategory, isAvailable } = req.body;
 
-    if ( !req.file && !productName && !productDescription && !productPrice && !productCategory && !productStock ) {
+    if ( !req.file && !productName || !productDescription || !productPrice || !productCategory || !isAvailable ) {
       return res.status(400).json({ message: "Request is incomplete" });
+    }
+    if (productPrice < 0) {
+      return res
+        .status(400)
+        .json({ message: "Price must not be negative" });
     }
 
     const product = await Product.findById(productId);
@@ -145,19 +150,19 @@ router.patch("/product/:id", verifyToken("admin"), upload.single("image"), async
       return res.status(404).json({ message: "No product found" });
     }
 
-    if (product.productImagePath) {
-      const publicId = product.productImagePath
-        .split("/")
-        .pop()
-        .split(".")[0];
-      await cloudinary.uploader.destroy(publicId);
+    if(req.file){
+      if (product.productImagePath) {
+        const publicId = product.productImagePath
+          .split("/products/")[1]
+          .split(".")[0];
+        await cloudinary.uploader.destroy("products/" + publicId);
+      }
+      const result = await cloudinary.uploader.upload(req.file.path, {
+        folder: "products",
+      });
+      fs.unlinkSync(req.file.path);
+      req.body.productImagePath = result.secure_url;
     }
-
-    const result = await cloudinary.uploader.upload(req.file.path, {
-      folder: "products",
-    });
-    fs.unlinkSync(req.file.path);
-    req.body.productImagePath = result.secure_url;
     
 
     const updatedProduct = await Product.findByIdAndUpdate(
@@ -187,10 +192,9 @@ router.delete("/product/:id", verifyToken("admin"), async (req, res) => {
     }
     if (product.productImagePath) {
       const publicId = product.productImagePath
-        .split("/")
-        .pop()
+        .split("/products/")[1]
         .split(".")[0];
-      await cloudinary.uploader.destroy(publicId);
+      await cloudinary.uploader.destroy("products/"+publicId);
     }
 
     await Product.findByIdAndDelete(productId);

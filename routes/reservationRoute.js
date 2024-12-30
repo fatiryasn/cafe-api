@@ -2,6 +2,8 @@ const router = require("express").Router();
 const verifyToken = require("../middleware/verifyToken");
 const Reservation = require("../models/reservationModel");
 const Table = require("../models/tableModel");
+const User = require("../models/userModel");
+const TableStat = require("../models/tableStatModel");
 
 //get all reservations
 router.get("/reservation", async (req, res) => {
@@ -48,65 +50,80 @@ module.exports = router;
 //create reservation
 router.post("/reservation", verifyToken(), async (req, res) => {
   try {
-    const { tableId, reservationDate, reservationTime, notes } =
-      req.body;
-    if (!tableId || !reservationDate || !reservationTime || !notes) {
+    const {
+      username,
+      useremail,
+      phoneNumber,
+      tableId,
+      reservationDate,
+      reservationTime,
+      notes,
+    } = req.body;
+    if (
+      !username ||
+      !useremail ||
+      !phoneNumber ||
+      !reservationDate ||
+      !reservationTime ||
+      !Array.isArray(tableId) ||
+      tableId.length === 0
+    ) {
       return res.status(400).json({ message: "Request is incomplete" });
     }
 
-    const formattedDate = new Date(reservationDate.split("/").reverse().join("-"));
-
-    if (isNaN(formattedDate.getTime())) {
-      return res.status(400).json({ message: "Invalid reservation date format" });
+    const user = await User.findOneAndUpdate(
+      { _id: req.user._id },
+      { username, useremail, phoneNumber }
+    );
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
     }
 
+    await TableStat.insertMany(
+      tableId.map((id) => ({
+        tableId: id,
+        date: reservationDate,
+        status: "Reserved",
+      }))
+    );
 
-    const table = await Table.findById(tableId)
-    if (!table){
-      return res.status(404).json({message: "Table not found"})
-    }
-    if (table.status !== "Available"){
-      return res.status(400).json({message: `Table is ${table.status}`})
-    }
-
-    const newReservation = {
+    const newReservation = new Reservation({
       userId: req.user._id,
       tableId,
-      reservationDate: formattedDate,
+      reservationDate,
       reservationTime,
       notes,
-    };
-    table.status = "Reserved"
-    await table.save()
+      status: "Pending",
+    });
+    await newReservation.save();
 
-    await Reservation.create(newReservation);
     res.status(201).json({
-      message: "Reservation created"
-    })
+      message: "Reservation created successfully",
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
 //delete reservation
-router.delete('/reservation/:id', async (req, res) => {
+router.delete("/reservation/:id", async (req, res) => {
   try {
-    const reservationId = req.params.id
-    const reservation = await Reservation.findById(reservationId)
-    if (!reservation){
-      return res.status(404).json({message: "No reservation found"})
+    const reservationId = req.params.id;
+    const reservation = await Reservation.findById(reservationId);
+    if (!reservation) {
+      return res.status(404).json({ message: "No reservation found" });
     }
-    const table = await Table.findById(reservation.tableId)
-    table.status = 'Available'
-    await table.save()
+    const table = await Table.findById(reservation.tableId);
+    table.status = "Available";
+    await table.save();
 
-    await Reservation.deleteOne({_id: reservationId})
+    await Reservation.deleteOne({ _id: reservationId });
     res.status(200).json({
       message: "Reservation deleted",
     });
   } catch (error) {
-    res.status(500).json({message: error.message})
+    res.status(500).json({ message: error.message });
   }
-})
+});
 
 module.exports = router;

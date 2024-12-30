@@ -24,8 +24,8 @@ POST http://localhost:8080/api/login
 Content-Type: application/json
 
 {
-    "useremail": "admincafe@test.com",
-    "password": "admincafe123"
+    "useremail": "steve@gmail.com",
+    "password": "steve123"
 }
 
 
@@ -53,10 +53,10 @@ GET http://localhost:8080/api/comment
 
 POST http://localhost:8080/api/comment
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NzVhYzUyNzhlNjFjNjJmMjAyNWYwNmIiLCJpYXQiOjE3MzQyNDA5NjIsImV4cCI6MTczNDI0MTAyMn0.f5YlwElCq2K5ZN3sHiLBCjlRNzYQM04xRnluF_UJQeU
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NzZlYWY0ODhlOTJkMjJlOGNjOTk1OWYiLCJ1c2VybmFtZSI6IlN0ZXZlIiwidXNlcmVtYWlsIjoic3RldmVAZ21haWwuY29tIiwicm9sZSI6ImN1c3RvbWVyIiwiaWF0IjoxNzM1NTUxNDUzLCJleHAiOjE3MzU1NTIwNTN9.mwLUTRQmTJf_bkZ-86YpesxT3PzgOWbovOlcfSZmnmY
 
 {
-    "comment": "comment #2"
+    "comment": "Test comment, from steve lorem isijii adsriha dsavkiira csoafior dsjaifjr"
 }
 ###
 DELETE http://localhost:8080/api/comment/675abcd59c64c261cafcf8a6

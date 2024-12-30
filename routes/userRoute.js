@@ -1,16 +1,19 @@
 const router = require("express").Router();
 const User = require("../models/userModel");
+const Reservation = require("../models/reservationModel")
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const verifyToken = require("../middleware/verifyToken");
 const { createAccessToken, createRefreshToken } = require("../utils/jwtUtils");
+const TableStat = require("../models/tableStatModel");
 
 //get all users
-router.get("/user", verifyToken, async (req, res) => {
+router.get("/user", verifyToken("admin"), async (req, res) => {
   try {
     const search = req.query.search || "";
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
+    const role = req.query.role || ""
     let sort = req.query.sort || "default";
 
     //sort handling
@@ -33,15 +36,18 @@ router.get("/user", verifyToken, async (req, res) => {
     const limitOptions = [10, 20, 50];
     const selectedLimit = limitOptions.includes(limit) ? limit : 10;
 
-    //query
-    const query = search
+    const searchVal = search
       ? {
           $or: [
             { username: { $regex: search, $options: "i" } },
-            { useremail: { $regex: search, $options: "i " } },
+            { useremail: { $regex: search, $options: "i" } },
           ],
         }
       : {};
+    const roleOptions = ["admin", "customer"]
+    const selectedRole = roleOptions.includes(role) && search === "" ? {role : role} : {}
+
+    const query = {...searchVal, ...selectedRole}
     const collation = { locale: "en", strength: 2 };
 
     const users = await User.find(query)
@@ -132,21 +138,29 @@ router.post("/login", async (req, res) => {
 });
  
 //delete one user
-router.delete("/user/:id", async (req, res) => {
+router.delete("/user/:id", verifyToken("admin"), async (req, res) => {
   try {
     const userId = req.params.id;
+
     const user = await User.findByIdAndDelete(userId);
-    if (!user || user.length <= 0) {
+    if (!user) {
       return res.status(404).json({ message: "No user found" });
     }
+
+    const usersReservations = await Reservation.find({ userId: userId });
+    const tableIds = usersReservations.flatMap((res) => res.tableId);
+
+    await Reservation.deleteMany({ userId: userId });
+    await TableStat.deleteMany({ tableId: {$in: tableIds} });
+
     return res.status(200).json({
       message: "User deleted",
-      data: user,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
+
 
 
 //refresh token
