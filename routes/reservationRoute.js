@@ -4,6 +4,7 @@ const Reservation = require("../models/reservationModel");
 const Table = require("../models/tableModel");
 const User = require("../models/userModel");
 const TableStat = require("../models/tableStatModel");
+const snap = require("../utils/midtrans")
 
 //get all reservations
 router.get("/reservation", async (req, res) => {
@@ -87,6 +88,7 @@ router.post("/reservation", verifyToken(), async (req, res) => {
       }))
     );
 
+    //create new reservation
     const newReservation = new Reservation({
       userId: req.user._id,
       tableId,
@@ -97,8 +99,25 @@ router.post("/reservation", verifyToken(), async (req, res) => {
     });
     await newReservation.save();
 
+    //midtrans transaction
+    const parameter = {
+      transaction_details: {
+        order_id: `reservation-${newReservation._id}`,
+        gross_amount: 30000
+      },
+      credit_card: {
+        secure: true
+      },
+      customer_details:{
+        first_name: username,
+        email: useremail,
+        phone: phoneNumber
+      },
+    }
+    const midtransToken = await snap.createTransactionToken(parameter)
     res.status(201).json({
       message: "Reservation created successfully",
+      token: midtransToken
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

@@ -1,6 +1,7 @@
 const router = require("express").Router();
 const verifyToken = require("../middleware/verifyToken");
 const Comment = require("../models/commentModel");
+const User = require("../models/userModel")
 
 router.get("/comment", async (req, res) => {
   try {
@@ -63,13 +64,22 @@ router.post("/comment", verifyToken(), async (req, res) => {
         .json({ message: "Cannot commenting more than one" });
     }
 
-    const { comment } = req.body;
+    const { comment, username, useremail } = req.body;
     if (!comment || comment.length <= 0) {
       return res.status(400).json({ message: "Request is incomplete" });
     }
     if (comment.length > 150) {
       return res.status(400).json({ message: "Limit is reached" });
     }
+
+    const user = await User.findOneAndUpdate(
+      { _id: req.user._id },
+      { username, useremail }
+    );
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
     const newComment = await Comment.create({
       comment: comment,
       userId: req.user._id,

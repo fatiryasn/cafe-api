@@ -1,6 +1,6 @@
 const router = require("express").Router();
 const User = require("../models/userModel");
-const Reservation = require("../models/reservationModel")
+const Reservation = require("../models/reservationModel");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const verifyToken = require("../middleware/verifyToken");
@@ -13,7 +13,7 @@ router.get("/user", verifyToken("admin"), async (req, res) => {
     const search = req.query.search || "";
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
-    const role = req.query.role || ""
+    const role = req.query.role || "";
     let sort = req.query.sort || "default";
 
     //sort handling
@@ -36,18 +36,17 @@ router.get("/user", verifyToken("admin"), async (req, res) => {
     const limitOptions = [10, 20, 50];
     const selectedLimit = limitOptions.includes(limit) ? limit : 10;
 
-    const searchVal = search
-      ? {
-          $or: [
-            { username: { $regex: search, $options: "i" } },
-            { useremail: { $regex: search, $options: "i" } },
-          ],
-        }
-      : {};
-    const roleOptions = ["admin", "customer"]
-    const selectedRole = roleOptions.includes(role) && search === "" ? {role : role} : {}
+    const searchVal = {
+      $or: [
+        { username: { $regex: search, $options: "i" } },
+        { useremail: { $regex: search, $options: "i" } },
+      ],
+    };
+    const roleOptions = ["admin", "customer"];
+    const selectedRole =
+      roleOptions.includes(role) && search === "" ? { role: role } : {};
 
-    const query = {...searchVal, ...selectedRole}
+    const query = { ...searchVal, ...selectedRole };
     const collation = { locale: "en", strength: 2 };
 
     const users = await User.find(query)
@@ -56,9 +55,7 @@ router.get("/user", verifyToken("admin"), async (req, res) => {
       .skip(skip)
       .collation(collation)
       .exec();
-    if (!users || users.length <= 0) {
-      return res.status(404).json({ message: "No data found" });
-    }
+ 
     return res.status(200).json({
       data: users,
       dataCount: await User.countDocuments(query),
@@ -122,21 +119,31 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ message: "Password is incorrect" });
     }
 
-    const accessToken = createAccessToken(user._id, user.username, user.useremail, user.role);
-    const refreshToken = createRefreshToken(user._id, user.username, user.useremail, user.role);
+    const accessToken = createAccessToken(
+      user._id,
+      user.username,
+      user.useremail,
+      user.role
+    );
+    const refreshToken = createRefreshToken(
+      user._id,
+      user.username,
+      user.useremail,
+      user.role
+    );
     await User.updateOne({ _id: user._id }, { refreshToken: refreshToken });
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000,
       secure: true,
-      sameSite: "none"
+      sameSite: "none",
     });
     res.json({ accessToken });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
- 
+
 //delete one user
 router.delete("/user/:id", verifyToken("admin"), async (req, res) => {
   try {
@@ -151,7 +158,7 @@ router.delete("/user/:id", verifyToken("admin"), async (req, res) => {
     const tableIds = usersReservations.flatMap((res) => res.tableId);
 
     await Reservation.deleteMany({ userId: userId });
-    await TableStat.deleteMany({ tableId: {$in: tableIds} });
+    await TableStat.deleteMany({ tableId: { $in: tableIds } });
 
     return res.status(200).json({
       message: "User deleted",
@@ -161,43 +168,54 @@ router.delete("/user/:id", verifyToken("admin"), async (req, res) => {
   }
 });
 
-
-
 //refresh token
 router.get("/token", async (req, res) => {
   try {
     const refreshToken = req.cookies.refreshToken;
     if (!refreshToken) return res.sendStatus(401);
 
-    const user = await User.findOne({refreshToken: refreshToken})
-    if(!user) return res.status(403)
+    const user = await User.findOne({ refreshToken: refreshToken });
+    if (!user) return res.status(403);
 
-    jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, (err, decoded) => {
-      if (err) return res.sendStatus(403);
-      const newAccessToken = createAccessToken(user._id, user.username, user.useremail, user.role);
-      res.json({ accessToken: newAccessToken });
-    }); 
+    jwt.verify(
+      refreshToken,
+      process.env.REFRESH_TOKEN_SECRET,
+      (err, decoded) => {
+        if (err) return res.sendStatus(403);
+        const newAccessToken = createAccessToken(
+          user._id,
+          user.username,
+          user.useremail,
+          user.role
+        );
+        res.json({ accessToken: newAccessToken });
+      }
+    );
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
 //logout route
-router.delete('/logout', async (req, res) => {
+router.delete("/logout", async (req, res) => {
   const refreshToken = req.cookies.refreshToken;
-  if (!refreshToken) return res.sendStatus(401); 
+  if (!refreshToken) return res.sendStatus(401);
 
   try {
-    const user = await User.findOneAndUpdate({ refreshToken: refreshToken }, { refreshToken: null });
+    const user = await User.findOneAndUpdate(
+      { refreshToken: refreshToken },
+      { refreshToken: null }
+    );
     if (!user) {
-      return res.status(404).json({ message: "User not found or already logged out" });
+      return res
+        .status(404)
+        .json({ message: "User not found or already logged out" });
     }
-    res.clearCookie('refreshToken'); 
+    res.clearCookie("refreshToken");
     return res.status(200).json({ message: "Logout success" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
-
 
 module.exports = router;
