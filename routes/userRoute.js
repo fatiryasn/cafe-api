@@ -172,10 +172,10 @@ router.delete("/user/:id", verifyToken("admin"), async (req, res) => {
 router.get("/token", async (req, res) => {
   try {
     const refreshToken = req.cookies.refreshToken;
-    if (!refreshToken) return res.sendStatus(401);
+    if (!refreshToken) return res.sendStatus(204);
 
     const user = await User.findOne({ refreshToken: refreshToken });
-    if (!user) return res.status(403);
+    if (!user) return res.sendStatus(204);
 
     jwt.verify(
       refreshToken,

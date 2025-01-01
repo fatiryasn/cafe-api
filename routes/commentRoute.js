@@ -5,10 +5,10 @@ const User = require("../models/userModel")
 
 router.get("/comment", async (req, res) => {
   try {
-    // Sort handling
+    //sort handling
     let sort = req.query.sort === "newest" ? { createdAt: -1 } : { _id: 1 };
 
-    // Pagination and limit handling
+    //page & limit
     const page = parseInt(req.query.page) > 0 ? parseInt(req.query.page) : 1;
     const limitOptions = [10, 20, 50];
     const limit = limitOptions.includes(parseInt(req.query.limit))
@@ -16,7 +16,7 @@ router.get("/comment", async (req, res) => {
       : 10;
     const skip = (page - 1) * limit;
 
-    // Status filter handling
+    //status handling
     const status = req.query.status || "";
     const statusOptions = ["Public", "Private"];
     if (status && !statusOptions.includes(status)) {
@@ -24,7 +24,7 @@ router.get("/comment", async (req, res) => {
     }
     const query = status ? { status } : {};
 
-    // Query comments
+    //query
     const collation = { locale: "en", strength: 2 };
     const dataCount = await Comment.countDocuments(query);
     const comments = await Comment.find(query)
@@ -34,14 +34,6 @@ router.get("/comment", async (req, res) => {
       .populate("userId", "username")
       .collation(collation);
 
-    // If no comments found
-    if (!comments || comments.length === 0) {
-      return res
-        .status(200)
-        .json({ data: [], dataCount: 0, message: "No comments found" });
-    }
-
-    // Success response
     res.status(200).json({
       data: comments,
       dataCount,
@@ -57,11 +49,15 @@ router.get("/comment", async (req, res) => {
 router.post("/comment", verifyToken(), async (req, res) => {
   try {
     const userId = req.user._id;
-    const commented = await Comment.findOne({ userId: userId });
-    if (commented) {
+
+    const now = new Date()
+    const startOfDay = new Date(now.toDateString());
+
+    const commentedToday = await Comment.findOne({ userId: userId , createdAt: {$gte: startOfDay}});
+    if (commentedToday) {
       return res
         .status(400)
-        .json({ message: "Cannot commenting more than one" });
+        .json({ message: "Sorry! Only one feedback per day" });
     }
 
     const { comment, username, useremail } = req.body;
