@@ -7,7 +7,7 @@ const reservationSchema = new mongoose.Schema(
       required: true,
       ref: "User",
     },
-    tableId: [
+    tableIds: [
       {
         type: mongoose.Schema.Types.ObjectId,
         required: true,
@@ -26,11 +26,24 @@ const reservationSchema = new mongoose.Schema(
       type: String,
       maxLength: 150,
     },
-    status: {
+    reservationStatus: {
       type: String,
       enum: ["Pending", "Confirmed", "Cancelled"],
       default: "Pending",
     },
+    snapToken: {
+      type: String,
+      default: ""
+    },
+    paymentMethod: {
+      type: String,
+      default: ""
+    },
+    paymentStatus: {
+      type: String,
+      enum: ["Pending", "Paid", "Cancelled"],
+      default: "Pending"
+    }
   },
   {
     timestamps: true,

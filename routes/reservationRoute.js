@@ -4,22 +4,20 @@ const Reservation = require("../models/reservationModel");
 const Table = require("../models/tableModel");
 const User = require("../models/userModel");
 const TableStat = require("../models/tableStatModel");
-const snap = require("../utils/midtrans")
+const snap = require("../utils/midtrans");
+const crypto = require("crypto");
 
 //get all reservations
-router.get("/reservation", async (req, res) => {
+router.get("/reservation", verifyToken("admin"), async (req, res) => {
   try {
     let sort = req.query.sort || "default";
-    const status = req.query.category || "";
+    const search = req.query.search || "";
+    const reservationStatus = req.query.reservationStatus || "";
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
 
-    // Sort handling
+    //sort handling
     switch (sort) {
-      case "asc":
-        sort = { reservationDate: 1 };
-        break;
-      case "dsc":
-        sort = { reservationDate: -1 };
-        break;
       case "newest":
         sort = { createdAt: -1 };
         break;
@@ -27,26 +25,122 @@ router.get("/reservation", async (req, res) => {
         sort = { _id: 1 };
     }
 
-    const statusOptions = ["Pending", "Confirmed", "Cancelled"];
-    const filterStatus = statusOptions.includes(status) ? { status } : {};
+    //limit handling
+    const skip = (page - 1) * limit;
+    const limitOptions = [10, 20, 50];
+    const selectedLimit = limitOptions.includes(limit) ? limit : 10;
 
-    const reservations = await Reservation.find(filterStatus)
-      .sort(sort)
-      .populate("userId", "username useremail")
-      .populate("tableId", "tableNumber capacity")
-      .exec();
+    //filter reservation status
+    const resStatusOptions = ["Pending", "Confirmed", "Cancelled"];
+    const filterResStatus = resStatusOptions.includes(reservationStatus)
+      ? { reservationStatus }
+      : {};
 
-    if (!reservations || reservations.length === 0) {
-      return res.status(404).json({ message: "No reservations found" });
-    }
+    // Aggregate pipeline for search and populate
+    const reservations = await Reservation.aggregate([
+      {
+        $match: {
+          ...filterResStatus,
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "userId",
+          foreignField: "_id",
+          as: "userInfo",
+        },
+      },
+      {
+        $unwind: {
+          path: "$userInfo",
+          preserveNullAndEmptyArrays: true, 
+        },
+      },
+      {
+        $lookup: {
+          from: "tables",
+          localField: "tableIds",
+          foreignField: "_id",
+          as: "tablesInfo",
+        },
+      },
+      {
+        $match: {
+          $or: [
+            { "userInfo.username": { $regex: search, $options: "i" } },
+            { "userInfo.useremail": { $regex: search, $options: "i" } },
+          ],
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          reservationDate: 1,
+          reservationTime: 1,
+          reservationStatus: 1,
+          productName: 1,
+          tablesInfo: {
+            _id: 1,
+            tableNumber: 1,
+            capacity: 1,
+          },
+          userInfo: {
+            _id: 1,
+            username: 1,
+            useremail: 1,
+          },
+          paymentMethod: 1,
+          paymentStatus: 1,
+          notes: 1,
+        },
+      },
+      { $sort: sort },
+      { $skip: skip },
+      { $limit: selectedLimit },
+    ]);
 
-    return res.status(200).json(reservations);
+    // Get total count of filtered data
+    const dataCount = await Reservation.aggregate([
+      {
+        $match: {
+          ...filterResStatus,
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "userId",
+          foreignField: "_id",
+          as: "userInfo",
+        },
+      },
+      {
+        $match: {
+          $or: [
+            { "userInfo.username": { $regex: search, $options: "i" } },
+            { "userInfo.useremail": { $regex: search, $options: "i" } },
+          ],
+        },
+      },
+      { $count: "total" },
+    ]);
+
+    const totalDataCount = dataCount[0]?.total || 0;
+
+    // Response
+    return res.status(200).json({
+      data: reservations,
+      dataCount: totalDataCount,
+      currentPage: page,
+      totalPages: Math.ceil(totalDataCount / selectedLimit),
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
-module.exports = router;
+
 
 //create reservation
 router.post("/reservation", verifyToken(), async (req, res) => {
@@ -55,7 +149,7 @@ router.post("/reservation", verifyToken(), async (req, res) => {
       username,
       useremail,
       phoneNumber,
-      tableId,
+      tableIds,
       reservationDate,
       reservationTime,
       notes,
@@ -66,12 +160,12 @@ router.post("/reservation", verifyToken(), async (req, res) => {
       !phoneNumber ||
       !reservationDate ||
       !reservationTime ||
-      !Array.isArray(tableId) ||
-      tableId.length === 0
+      !Array.isArray(tableIds) ||
+      tableIds.length === 0
     ) {
       return res.status(400).json({ message: "Request is incomplete" });
     }
-
+    
     const user = await User.findOneAndUpdate(
       { _id: req.user._id },
       { username, useremail, phoneNumber }
@@ -79,45 +173,45 @@ router.post("/reservation", verifyToken(), async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-
+    
     await TableStat.insertMany(
-      tableId.map((id) => ({
+      tableIds.map((id) => ({
         tableId: id,
         date: reservationDate,
         status: "Reserved",
       }))
     );
-
+    
     //create new reservation
     const newReservation = new Reservation({
       userId: req.user._id,
-      tableId,
+      tableIds,
       reservationDate,
       reservationTime,
       notes,
-      status: "Pending",
+      reservationStatus: "Pending",
     });
     await newReservation.save();
 
     //midtrans transaction
     const parameter = {
       transaction_details: {
-        order_id: `reservation-${newReservation._id}`,
-        gross_amount: 30000
+        order_id: newReservation._id,
+        gross_amount: 30000,
       },
       credit_card: {
-        secure: true
+        secure: true,
       },
-      customer_details:{
+      customer_details: {
         first_name: username,
         email: useremail,
-        phone: phoneNumber
+        phone: phoneNumber,
       },
-    }
-    const midtransToken = await snap.createTransactionToken(parameter)
+    };
+    const midtransToken = await snap.createTransactionToken(parameter);
     res.status(201).json({
       message: "Reservation created successfully",
-      token: midtransToken
+      token: midtransToken,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -127,22 +221,68 @@ router.post("/reservation", verifyToken(), async (req, res) => {
 //delete reservation
 router.delete("/reservation/:id", async (req, res) => {
   try {
-    const reservationId = req.params.id;
+    const reservationId = req.params.id
+
     const reservation = await Reservation.findById(reservationId);
     if (!reservation) {
-      return res.status(404).json({ message: "No reservation found" });
+      return res.status(404).json({ message: "Reservation not found" });
     }
-    const table = await Table.findById(reservation.tableId);
-    table.status = "Available";
-    await table.save();
 
-    await Reservation.deleteOne({ _id: reservationId });
+    await Reservation.findByIdAndDelete(reservationId);
+    await TableStat.deleteMany({ tableId: { $in: reservation.tableIds } });
+
     res.status(200).json({
-      message: "Reservation deleted",
-    });
+      message: "Reservation deleted"
+    })
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
+});
+
+//midtrans notif
+router.post("/res-notification", async (req, res) => {
+  const data = req.body;
+  const reservation = await Reservation.findById(data.order_id);
+  
+  if (!reservation) {
+    return res.status(404).json({ message: "Reservation not found" });
+  }
+  
+  const serverKey = process.env.MIDTRANS_SERVER_KEY;
+  const hash = crypto
+  .createHash("sha512")
+  .update(data.order_id + data.status_code + data.gross_amount + serverKey)
+  .digest("hex");
+  
+  if (hash !== data.signature_key) {
+    return res.status(400).json({ message: "Invalid signature" });
+  }
+  
+  const transactionStatus = data.transaction_status
+  const fraudStatus = data.fraud_status
+  if (transactionStatus == "capture") {
+    if (fraudStatus == "accept") {
+      await Reservation.findByIdAndUpdate(reservation._id, {paymentMethod: data.payment_type, paymentStatus: "Paid"})
+    }
+  } else if (transactionStatus == "settlement") {
+    await Reservation.findByIdAndUpdate(reservation._id, {paymentMethod: data.payment_type, paymentStatus: "Paid"})
+  } else if (
+    transactionStatus == "cancel" ||
+    transactionStatus == "deny" ||
+    transactionStatus == "expire"
+  ) {
+    await Reservation.findByIdAndUpdate(reservation._id, {
+      paymentStatus: "Cancelled",
+    });
+  } else if (transactionStatus == "pending") {
+    await Reservation.findByIdAndUpdate(reservation._id, {
+      paymentStatus: "Pending",
+    });
+  }
+  
+  return res.status(200).json({
+    message: "OK",
+  });
 });
 
 module.exports = router;

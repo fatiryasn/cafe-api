@@ -6,6 +6,7 @@ const jwt = require("jsonwebtoken");
 const verifyToken = require("../middleware/verifyToken");
 const { createAccessToken, createRefreshToken } = require("../utils/jwtUtils");
 const TableStat = require("../models/tableStatModel");
+const Comment = require("../models/commentModel")
 
 //get all users
 router.get("/user", verifyToken("admin"), async (req, res) => {
@@ -159,6 +160,7 @@ router.delete("/user/:id", verifyToken("admin"), async (req, res) => {
 
     await Reservation.deleteMany({ userId: userId });
     await TableStat.deleteMany({ tableId: { $in: tableIds } });
+    await Comment.deleteMany({userId: userId})
 
     return res.status(200).json({
       message: "User deleted",
