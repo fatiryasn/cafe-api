@@ -44,11 +44,18 @@ const updateStatusBasedOnMidtransResponse = async (reservationId, data) => {
     transactionStatus == "deny" ||
     transactionStatus == "expire"
   ) {
-    const transaction = await Reservation.findByIdAndUpdate(reservationId, {paymentStatus: "Cancelled"})
-    responseData = transaction
+    const transaction = await Reservation.findByIdAndUpdate(reservationId, {
+      paymentStatus: "Cancelled", reservationStatus: "Cancelled"
+    });
+    responseData = transaction;
   } else if (transactionStatus == "pending") {
     const transaction = await Reservation.findByIdAndUpdate(reservationId, {
       paymentStatus: "Pending",
+    });
+    responseData = transaction;
+  } else if (transactionStatus === "refunded") {
+    const transaction = await Reservation.findByIdAndUpdate(reservationId, {
+      paymentStatus: "Refunded", reservationStatus: "Cancelled"
     });
     responseData = transaction;
   }

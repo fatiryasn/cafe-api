@@ -1,11 +1,9 @@
 const router = require("express").Router();
 const verifyToken = require("../middleware/verifyToken");
 const Reservation = require("../models/reservationModel");
-const Table = require("../models/tableModel");
 const User = require("../models/userModel");
 const TableStat = require("../models/tableStatModel");
 const {snap, updateStatusBasedOnMidtransResponse} = require("../utils/midtrans");
-const crypto = require("crypto");
 
 //get all reservations
 router.get("/reservation", verifyToken("admin"), async (req, res) => {
@@ -217,6 +215,42 @@ router.post("/reservation", verifyToken(), async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
+//update reservation
+router.patch("/reservation/:id", async (req, res) => {
+  try {
+    const currentDate = new Date()
+    currentDate.setHours(0, 0, 0, 0);
+    const {reservationStatus} = req.body
+    const reservationId = req.params.id
+
+    const reservation = await Reservation.findById(reservationId)
+    if(!reservation){
+      return res.status(404).json({message: "Reservation not found"})
+    }
+    if(reservation.reservationDate < currentDate && reservationStatus !== "Cancelled"){
+      return res.status(400).json({message: "Sorry! you can't update an outdated reservation"})
+    }
+
+    if(reservationStatus === "Confirmed"){
+      await TableStat.updateMany({tableId: {$in: reservation.tableIds}}, {status: "Occupied"})
+    }else if(reservationStatus === "Pending"){
+      await TableStat.updateMany({tableId: {$in: reservation.tableIds}}, {status: "Reserved"})
+    }else if (reservationStatus === "Cancelled"){
+      await TableStat.updateMany({tableId: {$in: reservation.tableIds}}, {status: "Available"})
+    }else{
+      return res.status(400).json({message: "Invalid reservation status"})
+    }
+
+    await Reservation.findByIdAndUpdate(reservationId, {reservationStatus: reservationStatus})
+
+    res.status(200).json({
+      message: "Reservation updated"
+    })
+  } catch (error) {
+    res.status(500).json({message: error.message})
+  }
+})
 
 //delete reservation
 router.delete("/reservation/:id", async (req, res) => {

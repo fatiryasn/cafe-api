@@ -17,6 +17,14 @@ router.get("/table", async (req, res) => {
     if (isNaN(queryDate.getTime())) {
       return res.status(400).json({ message: "Invalid date format" });
     }
+
+    //del otomatis outdated tablestats
+    const currentDate = new Date();
+    currentDate.setHours(0, 0, 0, 0);
+    await TableStat.deleteMany({
+      date: { $lt: currentDate },
+    });
+
     const startOfDay = new Date(queryDate);
     const endOfDay = new Date(queryDate);
     endOfDay.setHours(23, 59, 59, 999);
