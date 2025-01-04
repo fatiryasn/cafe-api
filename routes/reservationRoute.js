@@ -4,7 +4,7 @@ const Reservation = require("../models/reservationModel");
 const Table = require("../models/tableModel");
 const User = require("../models/userModel");
 const TableStat = require("../models/tableStatModel");
-const snap = require("../utils/midtrans");
+const {snap, updateStatusBasedOnMidtransResponse} = require("../utils/midtrans");
 const crypto = require("crypto");
 
 //get all reservations
@@ -241,46 +241,19 @@ router.delete("/reservation/:id", async (req, res) => {
 
 //midtrans notif
 router.post("/res-notification", async (req, res) => {
+  console.log("endpoint hit")
   const data = req.body;
-  const reservation = await Reservation.findById(data.order_id);
   
-  if (!reservation) {
-    return res.status(404).json({ message: "Reservation not found" });
-  }
-  
-  const serverKey = process.env.MIDTRANS_SERVER_KEY;
-  const hash = crypto
-  .createHash("sha512")
-  .update(data.order_id + data.status_code + data.gross_amount + serverKey)
-  .digest("hex");
-  
-  if (hash !== data.signature_key) {
-    return res.status(400).json({ message: "Invalid signature" });
-  }
-  
-  const transactionStatus = data.transaction_status
-  const fraudStatus = data.fraud_status
-  if (transactionStatus == "capture") {
-    if (fraudStatus == "accept") {
-      await Reservation.findByIdAndUpdate(reservation._id, {paymentMethod: data.payment_type, paymentStatus: "Paid"})
+  Reservation.findOne({_id: data.order_id}).then((reservation) => {
+    if (reservation){
+      updateStatusBasedOnMidtransResponse(reservation._id, data).then((result) =>{
+        console.log('result', result)
+      })
     }
-  } else if (transactionStatus == "settlement") {
-    await Reservation.findByIdAndUpdate(reservation._id, {paymentMethod: data.payment_type, paymentStatus: "Paid"})
-  } else if (
-    transactionStatus == "cancel" ||
-    transactionStatus == "deny" ||
-    transactionStatus == "expire"
-  ) {
-    await Reservation.findByIdAndUpdate(reservation._id, {
-      paymentStatus: "Cancelled",
-    });
-  } else if (transactionStatus == "pending") {
-    await Reservation.findByIdAndUpdate(reservation._id, {
-      paymentStatus: "Pending",
-    });
-  }
+  })
   
   return res.status(200).json({
+    status: "success",
     message: "OK",
   });
 });
