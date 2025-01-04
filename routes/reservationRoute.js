@@ -3,7 +3,11 @@ const verifyToken = require("../middleware/verifyToken");
 const Reservation = require("../models/reservationModel");
 const User = require("../models/userModel");
 const TableStat = require("../models/tableStatModel");
-const {snap, updateStatusBasedOnMidtransResponse, cancelMidtransTransaction} = require("../utils/midtrans");
+const {
+  snap,
+  updateStatusBasedOnMidtransResponse,
+  cancelMidtransTransaction,
+} = require("../utils/midtrans");
 
 //get all reservations
 router.get("/reservation", verifyToken("admin"), async (req, res) => {
@@ -52,7 +56,7 @@ router.get("/reservation", verifyToken("admin"), async (req, res) => {
       {
         $unwind: {
           path: "$userInfo",
-          preserveNullAndEmptyArrays: true, 
+          preserveNullAndEmptyArrays: true,
         },
       },
       {
@@ -138,8 +142,6 @@ router.get("/reservation", verifyToken("admin"), async (req, res) => {
   }
 });
 
-
-
 //create reservation
 router.post("/reservation", verifyToken(), async (req, res) => {
   try {
@@ -163,7 +165,7 @@ router.post("/reservation", verifyToken(), async (req, res) => {
     ) {
       return res.status(400).json({ message: "Request is incomplete" });
     }
-    
+
     const user = await User.findOneAndUpdate(
       { _id: req.user._id },
       { username, useremail, phoneNumber }
@@ -171,7 +173,7 @@ router.post("/reservation", verifyToken(), async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-    
+
     await TableStat.insertMany(
       tableIds.map((id) => ({
         tableId: id,
@@ -179,7 +181,7 @@ router.post("/reservation", verifyToken(), async (req, res) => {
         status: "Reserved",
       }))
     );
-    
+
     //create new reservation
     const newReservation = new Reservation({
       userId: req.user._id,
@@ -210,6 +212,7 @@ router.post("/reservation", verifyToken(), async (req, res) => {
     res.status(201).json({
       message: "Reservation created successfully",
       token: midtransToken,
+      reservationId: newReservation._id,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -219,53 +222,96 @@ router.post("/reservation", verifyToken(), async (req, res) => {
 //update reservation
 router.patch("/reservation/:id", async (req, res) => {
   try {
-    const currentDate = new Date()
+    const currentDate = new Date();
     currentDate.setHours(0, 0, 0, 0);
-    const {reservationStatus} = req.body
-    const reservationId = req.params.id
+    const { reservationStatus } = req.body;
+    const reservationId = req.params.id;
 
-    const reservation = await Reservation.findById(reservationId)
-    if(!reservation){
-      return res.status(404).json({message: "Reservation not found"})
+    const reservation = await Reservation.findById(reservationId);
+    if (!reservation) {
+      return res.status(404).json({ message: "Reservation not found" });
     }
-    if(reservation.reservationDate < currentDate && reservationStatus !== "Cancelled"){
-      return res.status(400).json({message: "Sorry! Can't update an outdated reservation"})
+    if (reservation.reservationStatus === "Cancelled") {
+      return res
+        .status(400)
+        .json({
+          message: "Sorry! Can't update the already cancelled reservation",
+        });
     }
-    if(reservationStatus === "Cancelled" && reservation.paymentStatus === "Paid"){
-      return res.status(400).json({message: "Sorry! Can't cancel the reservation because the customer has already paid"})
+    if (
+      reservation.reservationDate < currentDate &&
+      reservationStatus !== "Cancelled"
+    ) {
+      return res
+        .status(400)
+        .json({ message: "Sorry! Can't update an outdated reservation" });
     }
-    if(reservationStatus === "Confirmed" && reservation.paymentStatus === "Pending"){
-      return res.status(400).json({message: "Sorry! Can't confirm the reservation because the customer has not paid"})
+    if (
+      reservationStatus === "Cancelled" &&
+      reservation.paymentStatus === "Paid"
+    ) {
+      return res
+        .status(400)
+        .json({
+          message:
+            "Sorry! Can't cancel the reservation because the customer has already paid",
+        });
+    }
+    if (
+      reservationStatus === "Confirmed" &&
+      reservation.paymentStatus === "Pending"
+    ) {
+      return res
+        .status(400)
+        .json({
+          message:
+            "Sorry! Can't confirm the reservation because the customer has not paid",
+        });
     }
 
-    if(reservationStatus === "Confirmed"){
-      await TableStat.updateMany({tableId: {$in: reservation.tableIds}}, {status: "Occupied"})
-    }else if(reservationStatus === "Pending"){
-      await TableStat.updateMany({tableId: {$in: reservation.tableIds}}, {status: "Reserved"})
-    }else if (reservationStatus === "Cancelled"){
-      await TableStat.updateMany({tableId: {$in: reservation.tableIds}}, {status: "Available"});
-      const midtransCancelRes = await cancelMidtransTransaction(reservationId)
-      if(midtransCancelRes.status_code !== 200){
-        return res.status(400).json("Failed to cancel payment in midtrans")
+    if (reservationStatus === "Confirmed") {
+      await TableStat.updateMany(
+        { tableId: { $in: reservation.tableIds } },
+        { status: "Occupied" }
+      );
+    } else if (reservationStatus === "Pending") {
+      await TableStat.updateMany(
+        { tableId: { $in: reservation.tableIds } },
+        { status: "Reserved" }
+      );
+    } else if (reservationStatus === "Cancelled") {
+      await TableStat.updateMany(
+        { tableId: { $in: reservation.tableIds } },
+        { status: "Available" }
+      );
+      if (reservation.paymentStatus !== "Cancelled") {
+        const midtransCancelRes = await cancelMidtransTransaction(
+          reservationId
+        );
+        if (midtransCancelRes.status_code !== 200) {
+          return res.status(400).json("Failed to cancel payment in midtrans");
+        }
       }
-    }else{
-      return res.status(400).json({message: "Invalid reservation status"})
+    } else {
+      return res.status(400).json({ message: "Invalid reservation status" });
     }
 
-    await Reservation.findByIdAndUpdate(reservationId, {reservationStatus: reservationStatus})
+    await Reservation.findByIdAndUpdate(reservationId, {
+      reservationStatus: reservationStatus,
+    });
 
     res.status(200).json({
-      message: "Reservation updated"
-    })
+      message: "Reservation updated",
+    });
   } catch (error) {
-    res.status(500).json({message: error.message})
+    res.status(500).json({ message: error.message });
   }
-})
+});
 
 //delete reservation
 router.delete("/reservation/:id", async (req, res) => {
   try {
-    const reservationId = req.params.id
+    const reservationId = req.params.id;
 
     const reservation = await Reservation.findById(reservationId);
     if (!reservation) {
@@ -276,8 +322,8 @@ router.delete("/reservation/:id", async (req, res) => {
     await TableStat.deleteMany({ tableId: { $in: reservation.tableIds } });
 
     res.status(200).json({
-      message: "Reservation deleted"
-    })
+      message: "Reservation deleted",
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -285,17 +331,19 @@ router.delete("/reservation/:id", async (req, res) => {
 
 //midtrans notif
 router.post("/res-notification", (req, res) => {
-  console.log("endpoint hit")
+  console.log("endpoint hit");
   const data = req.body;
-  
-  Reservation.findOne({_id: data.order_id}).then((reservation) => {
-    if (reservation){
-      updateStatusBasedOnMidtransResponse(reservation._id, data).then((result) =>{
-        console.log('result', result)
-      })
+
+  Reservation.findOne({ _id: data.order_id }).then((reservation) => {
+    if (reservation) {
+      updateStatusBasedOnMidtransResponse(reservation._id, data).then(
+        (result) => {
+          console.log("result", result);
+        }
+      );
     }
-  })
-  
+  });
+
   return res.status(200).json({
     status: "success",
     message: "OK",
