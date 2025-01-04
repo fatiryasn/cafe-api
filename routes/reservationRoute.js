@@ -3,7 +3,7 @@ const verifyToken = require("../middleware/verifyToken");
 const Reservation = require("../models/reservationModel");
 const User = require("../models/userModel");
 const TableStat = require("../models/tableStatModel");
-const {snap, updateStatusBasedOnMidtransResponse} = require("../utils/midtrans");
+const {snap, updateStatusBasedOnMidtransResponse, cancelMidtransTransaction} = require("../utils/midtrans");
 
 //get all reservations
 router.get("/reservation", verifyToken("admin"), async (req, res) => {
@@ -229,7 +229,13 @@ router.patch("/reservation/:id", async (req, res) => {
       return res.status(404).json({message: "Reservation not found"})
     }
     if(reservation.reservationDate < currentDate && reservationStatus !== "Cancelled"){
-      return res.status(400).json({message: "Sorry! you can't update an outdated reservation"})
+      return res.status(400).json({message: "Sorry! Can't update an outdated reservation"})
+    }
+    if(reservationStatus === "Cancelled" && reservation.paymentStatus === "Paid"){
+      return res.status(400).json({message: "Sorry! Can't cancel the reservation because the customer has already paid"})
+    }
+    if(reservationStatus === "Confirmed" && reservation.paymentStatus === "Pending"){
+      return res.status(400).json({message: "Sorry! Can't confirm the reservation because the customer has not paid"})
     }
 
     if(reservationStatus === "Confirmed"){
@@ -237,7 +243,11 @@ router.patch("/reservation/:id", async (req, res) => {
     }else if(reservationStatus === "Pending"){
       await TableStat.updateMany({tableId: {$in: reservation.tableIds}}, {status: "Reserved"})
     }else if (reservationStatus === "Cancelled"){
-      await TableStat.updateMany({tableId: {$in: reservation.tableIds}}, {status: "Available"})
+      await TableStat.updateMany({tableId: {$in: reservation.tableIds}}, {status: "Available"});
+      const midtransCancelRes = await cancelMidtransTransaction(reservationId)
+      if(midtransCancelRes.status_code !== 200){
+        return res.status(400).json("Failed to cancel payment in midtrans")
+      }
     }else{
       return res.status(400).json({message: "Invalid reservation status"})
     }

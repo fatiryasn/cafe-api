@@ -1,12 +1,15 @@
 const midtransClient = require("midtrans-client");
 const crypto = require("crypto");
 const Reservation = require("../models/reservationModel");
+const axios = require("axios")
 
+//snap
 let snap = new midtransClient.Snap({
   isProduction: false,
   serverKey: process.env.MIDTRANS_SERVER_KEY,
 });
 
+//func update status
 const updateStatusBasedOnMidtransResponse = async (reservationId, data) => {
   const hash = crypto
     .createHash("sha512")
@@ -66,4 +69,26 @@ const updateStatusBasedOnMidtransResponse = async (reservationId, data) => {
   }
 };
 
-module.exports = { snap, updateStatusBasedOnMidtransResponse };
+//func cancel res
+const cancelMidtransTransaction = async (order_id) => {
+  const url = `https://api.sandbox.midtrans.com/v2/${order_id}/cancel`;
+  const auth = "Basic " + Buffer.from(process.env.MIDTRANS_SERVER_KEY).toString("base64");
+
+  try {
+    const response = await axios.post(
+      url,
+      {},
+      {
+        headers: {
+          Authorization: auth,
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Failed to cancel Midtrans transaction:", error);
+    throw new Error("Midtrans cancellation failed");
+  }
+};
+
+module.exports = { snap, updateStatusBasedOnMidtransResponse, cancelMidtransTransaction };
