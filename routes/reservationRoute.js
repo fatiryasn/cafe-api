@@ -240,7 +240,7 @@ router.delete("/reservation/:id", async (req, res) => {
 });
 
 //midtrans notif
-router.post("/res-notification", async (req, res) => {
+router.post("/res-notification", (req, res) => {
   console.log("endpoint hit")
   const data = req.body;
   

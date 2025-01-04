@@ -12,7 +12,8 @@ const updateStatusBasedOnMidtransResponse = async (reservationId, data) => {
     .createHash("sha512")
     .update(
       `${reservationId}${data.status_code}${data.gross_amount}${process.env.MIDTRANS_SERVER_KEY}`
-    );
+    )
+    .digest('hex')
   if (data.signature_key !== hash) {
     return {
       status: "error",
