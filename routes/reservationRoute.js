@@ -209,6 +209,7 @@ router.post("/reservation", verifyToken(), async (req, res) => {
       },
     };
     const midtransToken = await snap.createTransactionToken(parameter);
+    await Reservation.findByIdAndUpdate(newReservation._id, {snapToken: midtransToken})
     res.status(201).json({
       message: "Reservation created successfully",
       token: midtransToken,
@@ -238,18 +239,12 @@ router.patch("/reservation/:id", async (req, res) => {
           message: "Sorry! Can't update the already cancelled reservation",
         });
     }
-    if (
-      reservation.reservationDate < currentDate &&
-      reservationStatus !== "Cancelled"
-    ) {
+    if (reservation.reservationDate < currentDate && reservationStatus !== "Cancelled") {
       return res
         .status(400)
         .json({ message: "Sorry! Can't update an outdated reservation" });
     }
-    if (
-      reservationStatus === "Cancelled" &&
-      reservation.paymentStatus === "Paid"
-    ) {
+    if (reservationStatus === "Cancelled" &&reservation.paymentStatus === "Paid" ) {
       return res
         .status(400)
         .json({
@@ -257,10 +252,7 @@ router.patch("/reservation/:id", async (req, res) => {
             "Sorry! Can't cancel the reservation because the customer has already paid",
         });
     }
-    if (
-      reservationStatus === "Confirmed" &&
-      reservation.paymentStatus === "Pending"
-    ) {
+    if (reservationStatus === "Confirmed" &&reservation.paymentStatus === "Pending") {
       return res
         .status(400)
         .json({
@@ -285,9 +277,7 @@ router.patch("/reservation/:id", async (req, res) => {
         { status: "Available" }
       );
       if (reservation.paymentStatus !== "Cancelled") {
-        const midtransCancelRes = await cancelMidtransTransaction(
-          reservationId
-        );
+        const midtransCancelRes = await cancelMidtransTransaction(reservationId);
         if (midtransCancelRes.status_code !== 200) {
           return res.status(400).json("Failed to cancel payment in midtrans");
         }
