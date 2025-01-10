@@ -5,7 +5,7 @@ const User = require("../models/userModel");
 const TableStat = require("../models/tableStatModel");
 const {
   snap,
-  updateStatusBasedOnMidtransResponse,
+  updateResPaymentStatus,
   cancelMidtransTransaction,
 } = require("../utils/midtrans");
 
@@ -196,7 +196,7 @@ router.post("/reservation", verifyToken(), async (req, res) => {
     //midtrans transaction
     const parameter = {
       transaction_details: {
-        order_id: newReservation._id,
+        order_id: `res-${newReservation._id}`,
         gross_amount: 30000,
       },
       credit_card: {
@@ -326,7 +326,7 @@ router.post("/res-notification", (req, res) => {
 
   Reservation.findOne({ _id: data.order_id }).then((reservation) => {
     if (reservation) {
-      updateStatusBasedOnMidtransResponse(reservation._id, data).then(
+      updateResPaymentStatus(reservation._id, data).then(
         (result) => {
           console.log("result", result);
         }

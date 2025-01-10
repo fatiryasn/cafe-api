@@ -87,6 +87,29 @@ router.get("/user/:id", async (req, res) => {
   }
 })
 
+//get user by id
+router.get("/user-by-email/:email", async (req, res) => {
+  try {
+    const useremail = req.params.email
+    if(!useremail){
+      return res.status(400).json({message: "Request is incomplete"})
+    }
+
+    const user = await User.findOne({useremail: useremail})
+    if(!user){
+      return res.status(204).json({ message: "User not found" });
+    }
+
+    res.status(200).json({
+      _id: user._id,
+      username: user.username,
+      useremail: user.useremail
+    })
+  } catch (error) {
+    res.status(500).json({ message: error.message }); 
+  }
+})
+
 //register
 router.post("/user", async (req, res) => {
   try {

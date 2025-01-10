@@ -29,7 +29,7 @@ router.get("/table", async (req, res) => {
     const endOfDay = new Date(queryDate);
     endOfDay.setHours(23, 59, 59, 999);
 
-    const tables = await Table.find().sort({tableNumber: 1});
+    const tables = await Table.find().sort({ tableNumber: 1 });
     if (!tables || tables.length <= 0) {
       return res.status(404).json({ message: "No table found" });
     }
@@ -58,6 +58,24 @@ router.get("/table", async (req, res) => {
       data: result,
       dataCount: tables.length,
     });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+//get all table (cashier)
+router.get("/table-for-cas", async (req, res) => {
+  try {
+    const tables = await Table.find().sort({tableNumber : 1})
+
+    const filteredTables = tables.map((table) => ({
+      _id: table._id,
+      tableNumber: table.tableNumber,
+    }));
+
+    res.status(200).json({
+      data: filteredTables
+    })
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -150,22 +168,22 @@ router.put("/table/:id", verifyToken("admin"), async (req, res) => {
 });
 
 //delete table
-router.delete('/table/:id', verifyToken("admin"), async (req, res) => {
-    try {
-        const tableId = req.params.id
-        const table = await Table.findByIdAndDelete(tableId)
-        if (!table){
-            return res.status(404).json({message: "No table found"})
-        }
-
-        await TableStat.deleteMany({tableId: tableId})
-
-        return res.status(200).json({
-          message: "Table deleted",
-        });
-    } catch (error) {
-       res.status(500).json({message: error.message}) 
+router.delete("/table/:id", verifyToken("admin"), async (req, res) => {
+  try {
+    const tableId = req.params.id;
+    const table = await Table.findByIdAndDelete(tableId);
+    if (!table) {
+      return res.status(404).json({ message: "No table found" });
     }
-})
+
+    await TableStat.deleteMany({ tableId: tableId });
+
+    return res.status(200).json({
+      message: "Table deleted",
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 
 module.exports = router;

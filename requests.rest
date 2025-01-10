@@ -130,3 +130,28 @@ GET https://cafemdn-api.vercel.app/api/table
 
 ###
 GET http://localhost:8080/api/all-data-count
+
+
+###
+POST http://localhost:8080/api/discount
+Content-Type: application/json
+
+{
+    "discountCode": "SOLIDSOLIDSOLID",
+    "discountValue": 5,
+    "discountType": "percentage",
+    "expiryDate": "2025-01-12",
+    "costInCoins": 50
+}
+
+
+###
+POST http://localhost:8080/api/order
+Content-Type: application/json
+{
+    "products": [
+        {
+            "p"
+        }
+    ]
+}

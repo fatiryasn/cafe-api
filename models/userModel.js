@@ -25,6 +25,10 @@ const userSchema = new mongoose.Schema({
         enum: ['customer', 'admin'],
         required: true
     },
+    loyaltyCoins: {
+        type: Number,
+        default: 0
+    },
     refreshToken: {
         type: String
     }
