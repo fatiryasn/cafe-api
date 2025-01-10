@@ -7,7 +7,6 @@ const verifyToken = require("../middleware/verifyToken");
 const Discount = require("../models/discountModel");
 
 router.post("/order", async (req, res) => {
-  console.log("hit")
   try {
     const {products, finalPrice, paymentMethod, tableId, customerEmail, discountCode} = req.body;
     if (

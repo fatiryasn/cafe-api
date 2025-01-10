@@ -38,7 +38,7 @@ router.post("/midtrans-notification", (req, res) => {
   if (data.order_id.startsWith("order-")) {
     Order.findOne({_id: data.order_id.split("-")[1]}).then((order) => {
         if(order){
-            updateOrdPaymentStatus(data.order_id).then((result) => {
+            updateOrdPaymentStatus(data.order_id, data).then((result) => {
                 console.log("result ",result)
             })
         }
