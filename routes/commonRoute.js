@@ -32,7 +32,6 @@ router.get("/all-data-count", async (req, res) => {
 
 //midtrans notif
 router.post("/midtrans-notification", (req, res) => {
-  console.log("endpoint hit");
   const data = req.body;
 
   if (data.order_id.startsWith("order-")) {

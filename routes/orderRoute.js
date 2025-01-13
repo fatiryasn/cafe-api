@@ -5,10 +5,161 @@ const User = require("../models/userModel");
 const Product = require("../models/productModel");
 const verifyToken = require("../middleware/verifyToken");
 const Discount = require("../models/discountModel");
+const Counter = require("../models/counterModel");
+const { getOrderNumber } = require("../utils/counterUtils");
 
+router.get("/order", async (req, res) => {
+  try {
+    const search = req.query.search || "";
+    const date = req.query.date || "";
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const paymentStatus = req.query.paymentStatus || "";
+    const orderType = req.query.orderType || "";
+    let sort = req.query.sort || "default";
+
+    //limit handling
+    const skip = (page - 1) * limit;
+    const limitOptions = [50, 70, 100];
+    const selectedLimit = limitOptions.includes(limit) ? limit : 50;
+
+    //filter
+    const match = {};
+
+    const sortOptions = {
+      asc: { "userInfo.username": 1 },
+      dsc: { "userInfo.username": -1 },
+      newest: { createdAt: -1 },
+      oldest: { createdAt: 1 },
+    };
+    const selectedSort = sortOptions[sort] || sortOptions.newest;
+
+    if (date) {
+      const queryDate = new Date(date);
+      queryDate.setHours(0, 0, 0, 0);
+      const startOfDay = new Date(queryDate);
+      const endOfDay = new Date(queryDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      match.createdAt = { $gte: startOfDay, $lte: endOfDay };
+    }
+
+    if (paymentStatus) {
+      const validPaymentStatus = ["Pending", "Paid", "Cancelled"];
+      const selectedPaymentStatus =
+        validPaymentStatus.includes(paymentStatus) && search === ""
+          ? paymentStatus
+          : null;
+      match.paymentStatus = selectedPaymentStatus;
+    }
+
+    if (orderType) {
+      const validOrderType = ["cashier", "online"];
+      const selectedOrderType =
+        validOrderType.includes(orderType) && search === "" ? orderType : null;
+      match.orderType = selectedOrderType;
+    }
+
+    const orders = await Order.aggregate([
+      { $match: match },
+
+      {
+        $lookup: {
+          from: "users",
+          localField: "userId",
+          foreignField: "_id",
+          as: "userInfo",
+        },
+      },
+      {
+        $lookup: {
+          from: "tables",
+          localField: "tableId",
+          foreignField: "_id",
+          as: "tableInfo",
+        },
+      },
+      {
+        $unwind: {
+          path: "$userInfo",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $unwind: {
+          path: "$tableInfo",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $match: {
+          $or: [
+            { "userInfo.username": { $regex: search, $options: "i" } },
+            { "userInfo.useremail": { $regex: search, $options: "i" } },
+            { orderNumber: { $regex: search, $options: "i" } },
+            { userInfo: { $eq: null } },
+          ],
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          orderNumber: 1,
+          userInfo: {
+            _id: 1,
+            username: 1,
+            useremail: 1,
+          },
+          tableInfo: {
+            _id: 1,
+            tableNumber: 1,
+          },
+          orderType: 1,
+          products: 1,
+          fee: 1,
+          paymentMethod: 1,
+          paymentStatus: 1,
+          createdAt: 1
+        },
+      },
+      { $sort: selectedSort },
+      { $skip: skip },
+      { $limit: selectedLimit },
+    ]).exec();
+
+    const totalDocuments = await Order.aggregate([
+      {
+        $match: match,
+      },
+      {
+        $count: "totalCount",
+      },
+    ]);
+    const totalDataCount = totalDocuments[0]?.totalCount || 0;
+
+    return res.status(200).json({
+      data: orders,
+      dataCount: totalDataCount,
+      currentPage: page,
+      totalPages: Math.ceil(totalDataCount / selectedLimit),
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+    console.error(error);
+  }
+});
+
+//create order
 router.post("/order", async (req, res) => {
   try {
-    const {products, finalPrice, paymentMethod, tableId, customerEmail, discountCode} = req.body;
+    const {
+      products,
+      finalPrice,
+      paymentMethod,
+      tableId,
+      customerEmail,
+      discountCode,
+    } = req.body;
     if (
       !products ||
       !Array.isArray(products) ||
@@ -47,10 +198,12 @@ router.post("/order", async (req, res) => {
       await Discount.findByIdAndUpdate(discount._id, { forUserId: user._id });
     }
 
+    const newOrderNumber = await getOrderNumber();
     let newOrder;
     //cash payment
     if (paymentMethod === "Cash") {
       newOrder = new Order({
+        orderNumber: newOrderNumber,
         userId: user ? user._id : null,
         tableId: tableId || null,
         orderType: "cashier",
@@ -69,12 +222,12 @@ router.post("/order", async (req, res) => {
       //online payment
     } else if (paymentMethod === "Online") {
       newOrder = new Order({
+        orderNumber: newOrderNumber,
         userId: user ? user._id : null,
         tableId: tableId || null,
         orderType: "cashier",
         products: products,
         fee: finalPrice,
-        paymentStatus: "Pending", 
       });
 
       await newOrder.save();
@@ -108,7 +261,7 @@ router.post("/order", async (req, res) => {
         message:
           "New order created successfully! Please proceed with online payment.",
         snapToken: midtransToken,
-        orderId: newOrder._id
+        orderId: newOrder._id,
       });
     } else {
       res.status(400).json({ message: "Invalid payment method" });
@@ -137,6 +290,5 @@ router.delete("/order/:id", async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
-
 
 module.exports = router;
