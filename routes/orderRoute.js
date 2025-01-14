@@ -80,6 +80,14 @@ router.get("/order", async (req, res) => {
         },
       },
       {
+        $lookup: {
+          from: "products",
+          localField: "products.productId",
+          foreignField: "_id",
+          as: "productInfo",
+        },
+      },
+      {
         $unwind: {
           path: "$userInfo",
           preserveNullAndEmptyArrays: true,
@@ -92,6 +100,12 @@ router.get("/order", async (req, res) => {
         },
       },
       {
+        $unwind: {
+          path: "$profuctInfo",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
         $match: {
           $or: [
             { "userInfo.username": { $regex: search, $options: "i" } },
@@ -99,6 +113,21 @@ router.get("/order", async (req, res) => {
             { orderNumber: { $regex: search, $options: "i" } },
             { userInfo: { $eq: null } },
           ],
+        },
+      },
+      {
+        $addFields: {
+          "productInfo.quantity": {
+            $arrayElemAt: [
+              "$products.quantity",
+              {
+                $indexOfArray: [
+                  "$products.productId",
+                  "$productInfo._id",
+                ],
+              },
+            ],
+          },
         },
       },
       {
@@ -115,11 +144,16 @@ router.get("/order", async (req, res) => {
             tableNumber: 1,
           },
           orderType: 1,
-          products: 1,
+          productInfo: {
+            _id: 1,
+            productName: 1,
+            productPrice: 1,
+            quantity: 1
+          },
           fee: 1,
           paymentMethod: 1,
           paymentStatus: 1,
-          createdAt: 1
+          createdAt: 1,
         },
       },
       { $sort: selectedSort },
