@@ -194,6 +194,7 @@ router.post("/reservation", verifyToken(), async (req, res) => {
       resNumber: newResNumber,
       userId: req.user._id,
       tableIds,
+      resType: "online",
       reservationDate,
       reservationTime,
       notes,
