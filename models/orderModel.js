@@ -5,6 +5,7 @@ const orderSchema = new mongoose.Schema(
     orderNumber: {
       type: String,
       required: true,
+      unique: true,
     },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -20,6 +21,16 @@ const orderSchema = new mongoose.Schema(
       type: String,
       required: true,
       enum: ["cashier", "online"],
+    },
+    cashier: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    discount: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Discount",
+      default: null,
     },
     products: [
       {
@@ -43,7 +54,7 @@ const orderSchema = new mongoose.Schema(
       type: Number,
       required: true,
       validate: {
-        validator: (value) => value >= 0,
+        validator: (value) => typeof value === "number" && value >= 0,
         message: "Fee must be a positive number",
       },
     },
@@ -58,7 +69,7 @@ const orderSchema = new mongoose.Schema(
     paymentStatus: {
       type: String,
       enum: ["Pending", "Paid", "Cancelled", "Refunded"],
-      default: "Pending"
+      default: "Pending",
     },
   },
   { timestamps: true }

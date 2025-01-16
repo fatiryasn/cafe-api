@@ -2,10 +2,8 @@ const router = require("express").Router();
 const { snap } = require("../utils/midtrans");
 const Order = require("../models/orderModel");
 const User = require("../models/userModel");
-const Product = require("../models/productModel");
 const verifyToken = require("../middleware/verifyToken");
 const Discount = require("../models/discountModel");
-const Counter = require("../models/counterModel");
 const { getOrderNumber } = require("../utils/counterUtils");
 
 router.get("/order", async (req, res) => {
@@ -184,7 +182,7 @@ router.get("/order", async (req, res) => {
 });
 
 //create order
-router.post("/order", async (req, res) => {
+router.post("/order", verifyToken("cashier"), async (req, res) => {
   try {
     const {
       products,
@@ -192,7 +190,8 @@ router.post("/order", async (req, res) => {
       paymentMethod,
       tableId,
       customerEmail,
-      discountCode,
+      cashierId,
+      discountId,
     } = req.body;
     if (
       !products ||
@@ -217,8 +216,8 @@ router.post("/order", async (req, res) => {
     }
 
     //validate discount
-    if (discountCode) {
-      const discount = await Discount.findOne({ discountCode: discountCode });
+    if (discountId) {
+      const discount = await Discount.findById(discountId);
       if (!discount) {
         return res.status(204).json({ message: "Discount not found" });
       }
@@ -241,6 +240,8 @@ router.post("/order", async (req, res) => {
         userId: user ? user._id : null,
         tableId: tableId || null,
         orderType: "cashier",
+        cashier: cashierId,
+        discount: discountId,
         products: products,
         fee: finalPrice,
         paymentMethod,
@@ -260,6 +261,7 @@ router.post("/order", async (req, res) => {
         userId: user ? user._id : null,
         tableId: tableId || null,
         orderType: "cashier",
+        discount: discountId,
         products: products,
         fee: finalPrice,
       });

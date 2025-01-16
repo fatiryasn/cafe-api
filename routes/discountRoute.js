@@ -21,6 +21,7 @@ router.get("/discount/:code", async (req, res) => {
     }
 
     return res.status(200).json({
+      _id: discount._id,
       discountCode: discount.discountCode,
       discountValue: discount.discountValue,
       discountType: discount.discountType,

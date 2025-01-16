@@ -58,4 +58,37 @@ router.post("/midtrans-notification", (req, res) => {
   });
 });
 
+//today revenue
+router.get("/daily-revenue", async (req, res) => {
+  try {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const orders = await Order.find({
+      createdAt: { $gte: startOfDay, $lte: endOfDay },
+    });
+
+    const reservationCount = await Reservation.countDocuments({
+      createdAt: { $gte: startOfDay, $lte: endOfDay },
+    });
+
+    const totalOrderFee = orders.reduce((sum, order) => sum + order.fee, 0);
+    const reservationFee = reservationCount * 30000;
+
+    const totalRevenue = totalOrderFee + reservationFee;
+
+    return res.status(200).json({
+      orders: totalOrderFee,
+      reservations: reservationFee,
+      total: totalRevenue,
+    });
+  } catch (error) {
+    // Menangani error jika ada masalah
+    res.status(500).json({ message: error.message });
+  }
+});
+
 module.exports = router;

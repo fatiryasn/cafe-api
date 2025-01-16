@@ -2,6 +2,11 @@ const mongoose = require("mongoose");
 
 const reservationSchema = new mongoose.Schema(
   {
+    resNumber: {
+      type: String,
+      required: true,
+      unique: true
+    },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       required: true,
@@ -14,6 +19,11 @@ const reservationSchema = new mongoose.Schema(
         ref: "Table",
       },
     ],
+    resType: {
+      type: String,
+      required: true,
+      enum: ["cashier", "online"]
+    },
     reservationDate: {
       type: Date,
       required: true,

@@ -137,10 +137,10 @@ POST http://localhost:8080/api/discount
 Content-Type: application/json
 
 {
-    "discountCode": "SOLIDSOLIDSOLID",
-    "discountValue": 5,
-    "discountType": "percentage",
-    "expiryDate": "2025-01-12",
+    "discountCode": "TEST5",
+    "discountValue": 10000,
+    "discountType": "fixed",
+    "expiryDate": "2025-01-20",
     "costInCoins": 50
 }
 

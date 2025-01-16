@@ -8,49 +8,77 @@ const {
   updateResPaymentStatus,
   cancelMidtransTransaction,
 } = require("../utils/midtrans");
+const { getResNumber } = require("../utils/counterUtils");
 
 //get all reservations
-router.get("/reservation", verifyToken("admin"), async (req, res) => {
+router.get("/reservation", async (req, res) => {
   try {
-    let sort = req.query.sort || "default";
     const search = req.query.search || "";
-    const reservationStatus = req.query.reservationStatus || "";
+    const date = req.query.date || "";
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-
-    //sort handling
-    switch (sort) {
-      case "newest":
-        sort = { createdAt: -1 };
-        break;
-      default:
-        sort = { _id: 1 };
-    }
+    const limit = parseInt(req.query.limit) || 50;
+    const paymentStatus = req.query.paymentStatus || "";
+    const resType = req.query.orderType || "";
+    let sort = req.query.sort || "default";
 
     //limit handling
     const skip = (page - 1) * limit;
-    const limitOptions = [10, 20, 50];
-    const selectedLimit = limitOptions.includes(limit) ? limit : 10;
+    const limitOptions = [50, 70, 100];
+    const selectedLimit = limitOptions.includes(limit) ? limit : 50;
 
-    //filter reservation status
-    const resStatusOptions = ["Pending", "Confirmed", "Cancelled"];
-    const filterResStatus = resStatusOptions.includes(reservationStatus)
-      ? { reservationStatus }
-      : {};
+    //filter
+    const match = {};
 
-    // Aggregate pipeline for search and populate
+    const sortOptions = {
+      asc: { "userInfo.username": 1 },
+      dsc: { "userInfo.username": -1 },
+      newest: { createdAt: -1 },
+      oldest: { createdAt: 1 },
+    };
+    const selectedSort = sortOptions[sort] || sortOptions.newest;
+
+    if (date) {
+      const queryDate = new Date(date);
+      queryDate.setHours(0, 0, 0, 0);
+      const startOfDay = new Date(queryDate);
+      const endOfDay = new Date(queryDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      match.createdAt = { $gte: startOfDay, $lte: endOfDay };
+    }
+
+    if (paymentStatus) {
+      const validPaymentStatus = ["Pending", "Paid", "Cancelled"];
+      const selectedPaymentStatus =
+        validPaymentStatus.includes(paymentStatus) && search === ""
+          ? paymentStatus
+          : null;
+      match.paymentStatus = selectedPaymentStatus;
+    }
+
+    if (resType) {
+      const validResType = ["cashier", "online"];
+      const selectedResType =
+        validResType.includes(resType) && search === "" ? resType : null;
+      match.resType = selectedResType;
+    }
+
     const reservations = await Reservation.aggregate([
-      {
-        $match: {
-          ...filterResStatus,
-        },
-      },
+      { $match: match },
       {
         $lookup: {
           from: "users",
           localField: "userId",
           foreignField: "_id",
           as: "userInfo",
+        },
+      },
+      {
+        $lookup: {
+          from: "tables",
+          localField: "tableIds",
+          foreignField: "_id",
+          as: "tableInfo",
         },
       },
       {
@@ -60,77 +88,54 @@ router.get("/reservation", verifyToken("admin"), async (req, res) => {
         },
       },
       {
-        $lookup: {
-          from: "tables",
-          localField: "tableIds",
-          foreignField: "_id",
-          as: "tablesInfo",
-        },
-      },
-      {
         $match: {
           $or: [
             { "userInfo.username": { $regex: search, $options: "i" } },
             { "userInfo.useremail": { $regex: search, $options: "i" } },
+            { orderNumber: { $regex: search, $options: "i" } },
+            { userInfo: { $eq: null } },
           ],
         },
       },
       {
         $project: {
           _id: 1,
-          reservationDate: 1,
-          reservationTime: 1,
-          reservationStatus: 1,
-          productName: 1,
-          tablesInfo: {
-            _id: 1,
-            tableNumber: 1,
-            capacity: 1,
-          },
+          resNumber: 1,
           userInfo: {
             _id: 1,
             username: 1,
             useremail: 1,
+            phoneNumber: 1,
           },
+          tableInfo: {
+            _id: 1,
+            tableNumber: 1,
+          },
+          reservationDate: 1,
+          reservationTime: 1,
+          reservationStatus: 1,
+          resType: 1,
           paymentMethod: 1,
           paymentStatus: 1,
           notes: 1,
+          createdAt: 1,
         },
       },
-      { $sort: sort },
+      { $sort: selectedSort },
       { $skip: skip },
       { $limit: selectedLimit },
+    ]).exec();
+
+    const totalDocuments = await Reservation.aggregate([
+      {
+        $match: match,
+      },
+      {
+        $count: "totalCount",
+      },
     ]);
+    const totalDataCount = totalDocuments[0]?.totalCount || 0;
 
-    // Get total count of filtered data
-    const dataCount = await Reservation.aggregate([
-      {
-        $match: {
-          ...filterResStatus,
-        },
-      },
-      {
-        $lookup: {
-          from: "users",
-          localField: "userId",
-          foreignField: "_id",
-          as: "userInfo",
-        },
-      },
-      {
-        $match: {
-          $or: [
-            { "userInfo.username": { $regex: search, $options: "i" } },
-            { "userInfo.useremail": { $regex: search, $options: "i" } },
-          ],
-        },
-      },
-      { $count: "total" },
-    ]);
-
-    const totalDataCount = dataCount[0]?.total || 0;
-
-    // Response
     return res.status(200).json({
       data: reservations,
       dataCount: totalDataCount,
@@ -182,8 +187,11 @@ router.post("/reservation", verifyToken(), async (req, res) => {
       }))
     );
 
+    const newResNumber = await getResNumber();
+
     //create new reservation
     const newReservation = new Reservation({
+      resNumber: newResNumber,
       userId: req.user._id,
       tableIds,
       reservationDate,
@@ -209,7 +217,9 @@ router.post("/reservation", verifyToken(), async (req, res) => {
       },
     };
     const midtransToken = await snap.createTransactionToken(parameter);
-    await Reservation.findByIdAndUpdate(newReservation._id, {snapToken: midtransToken})
+    await Reservation.findByIdAndUpdate(newReservation._id, {
+      snapToken: midtransToken,
+    });
     res.status(201).json({
       message: "Reservation created successfully",
       token: midtransToken,
@@ -233,32 +243,35 @@ router.patch("/reservation/:id", async (req, res) => {
       return res.status(404).json({ message: "Reservation not found" });
     }
     if (reservation.reservationStatus === "Cancelled") {
-      return res
-        .status(400)
-        .json({
-          message: "Sorry! Can't update the already cancelled reservation",
-        });
+      return res.status(400).json({
+        message: "Sorry! Can't update the already cancelled reservation",
+      });
     }
-    if (reservation.reservationDate < currentDate && reservationStatus !== "Cancelled") {
+    if (
+      reservation.reservationDate < currentDate &&
+      reservationStatus !== "Cancelled"
+    ) {
       return res
         .status(400)
         .json({ message: "Sorry! Can't update an outdated reservation" });
     }
-    if (reservationStatus === "Cancelled" &&reservation.paymentStatus === "Paid" ) {
-      return res
-        .status(400)
-        .json({
-          message:
-            "Sorry! Can't cancel the reservation because the customer has already paid",
-        });
+    if (
+      reservationStatus === "Cancelled" &&
+      reservation.paymentStatus === "Paid"
+    ) {
+      return res.status(400).json({
+        message:
+          "Sorry! Can't cancel the reservation because the customer has already paid",
+      });
     }
-    if (reservationStatus === "Confirmed" &&reservation.paymentStatus === "Pending") {
-      return res
-        .status(400)
-        .json({
-          message:
-            "Sorry! Can't confirm the reservation because the customer has not paid",
-        });
+    if (
+      reservationStatus === "Confirmed" &&
+      reservation.paymentStatus === "Pending"
+    ) {
+      return res.status(400).json({
+        message:
+          "Sorry! Can't confirm the reservation because the customer has not paid",
+      });
     }
 
     if (reservationStatus === "Confirmed") {
@@ -277,7 +290,9 @@ router.patch("/reservation/:id", async (req, res) => {
         { status: "Available" }
       );
       if (reservation.paymentStatus !== "Cancelled") {
-        const midtransCancelRes = await cancelMidtransTransaction(reservationId);
+        const midtransCancelRes = await cancelMidtransTransaction(
+          reservationId
+        );
         if (midtransCancelRes.status_code !== 200) {
           return res.status(400).json("Failed to cancel payment in midtrans");
         }
@@ -326,11 +341,9 @@ router.post("/res-notification", (req, res) => {
 
   Reservation.findOne({ _id: data.order_id }).then((reservation) => {
     if (reservation) {
-      updateResPaymentStatus(reservation._id, data).then(
-        (result) => {
-          console.log("result", result);
-        }
-      );
+      updateResPaymentStatus(reservation._id, data).then((result) => {
+        console.log("result", result);
+      });
     }
   });
 
