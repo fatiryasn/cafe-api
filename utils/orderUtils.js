@@ -1,4 +1,4 @@
-const getOrderAggregationPipeline = (match, sort, skip, limit, search) => [
+const getOrderAggregationPipeline = (match, sort, skip, limit, search="") => [
   { $match: match || {} },
   {
     $lookup: {
@@ -44,6 +44,14 @@ const getOrderAggregationPipeline = (match, sort, skip, limit, search) => [
   { $unwind: { path: "$tableInfo", preserveNullAndEmptyArrays: true } },
   { $unwind: { path: "$cashierInfo", preserveNullAndEmptyArrays: true } },
   { $unwind: { path: "$discountInfo", preserveNullAndEmptyArrays: true } },
+  {
+    $match: {
+      $or: [
+        { "userInfo.username": { $regex: search, $options: "i" } },
+        { orderNumber: { $regex: search, $options: "i" } },
+      ],
+    },
+  },
   {
     $addFields: {
       "productInfo.quantity": {
@@ -104,9 +112,8 @@ const getResAggregationPipeline = (match, sort, skip, limit, search) => [
     $match: {
       $or: [
         { "userInfo.username": { $regex: search, $options: "i" } },
-        { "userInfo.useremail": { $regex: search, $options: "i" } },
+        { "customerDetails.name": { $regex: search, $options: "i" } },
         { resNumber: { $regex: search, $options: "i" } },
-        { userInfo: { $eq: null } },
       ],
     },
   },
@@ -138,7 +145,6 @@ const getResAggregationPipeline = (match, sort, skip, limit, search) => [
   { $sort: sort },
   { $skip: skip },
   { $limit: limit },
-]; 
+];
 
-
-module.exports = {getOrderAggregationPipeline, getResAggregationPipeline}
+module.exports = { getOrderAggregationPipeline, getResAggregationPipeline };

@@ -46,7 +46,7 @@ router.get("/order", async (req, res) => {
     if (paymentStatus) {
       const validPaymentStatus = ["Pending", "Paid", "Cancelled"];
       const selectedPaymentStatus =
-        validPaymentStatus.includes(paymentStatus) && search === ""
+        validPaymentStatus.includes(paymentStatus)
           ? paymentStatus
           : null;
       match.paymentStatus = selectedPaymentStatus;
@@ -55,12 +55,12 @@ router.get("/order", async (req, res) => {
     if (orderType) {
       const validOrderType = ["cashier", "online"];
       const selectedOrderType =
-        validOrderType.includes(orderType) && search === "" ? orderType : null;
+        validOrderType.includes(orderType) ? orderType : null;
       match.orderType = selectedOrderType;
     }
 
     const orders = await Order.aggregate(
-      getOrderAggregationPipeline(match, selectedSort, skip, selectedLimit)
+      getOrderAggregationPipeline(match, selectedSort, skip, selectedLimit, search)
     ).exec();
 
     const totalDocuments = await Order.aggregate([
