@@ -84,7 +84,7 @@ const getOrderAggregationPipeline = (match, sort, skip, limit, search="") => [
   { $limit: limit || 50 },
 ];
 
-const getResAggregationPipeline = (match, sort, skip, limit, search) => [
+const getResAggregationPipeline = (match, sort, skip, limit, search="") => [
   { $match: match },
   {
     $lookup: {

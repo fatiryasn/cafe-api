@@ -51,7 +51,7 @@ router.get("/reservation", async (req, res) => {
     if (paymentStatus) {
       const validPaymentStatus = ["Pending", "Paid", "Cancelled"];
       const selectedPaymentStatus =
-        validPaymentStatus.includes(paymentStatus) && search === ""
+        validPaymentStatus.includes(paymentStatus)
           ? paymentStatus
           : null;
       match.paymentStatus = selectedPaymentStatus;
@@ -60,7 +60,7 @@ router.get("/reservation", async (req, res) => {
     if (resType) {
       const validResType = ["cashier", "online"];
       const selectedResType =
-        validResType.includes(resType) && search === "" ? resType : null;
+        validResType.includes(resType) ? resType : null;
       match.resType = selectedResType;
     }
 
