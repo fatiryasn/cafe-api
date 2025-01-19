@@ -167,6 +167,62 @@ router.put("/table/:id", verifyToken("admin"), async (req, res) => {
   }
 });
 
+//update stat table (cas)
+router.patch("/table-cas/:id", verifyToken("cashier"), async (req, res) => {
+  try {
+    const tableId = req.params.id
+    const {status, date} = req.body
+    if (!status || !date) {
+      return res.status(400).json({ message: "Request is incomplete" });
+    }
+    const validStatus = ["Available", "Reserved", "Occupied"];
+    if (!validStatus.includes(status)) {
+      return res.status(400).json({ message: "Input invalid" });
+    }
+
+    const queryDate = new Date(date);
+    const startOfDay = new Date(queryDate);
+    const endOfDay = new Date(queryDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const tableStat = await TableStat.findOne({
+      tableId: tableId,
+      date: {
+        $gte: startOfDay,
+        $lte: endOfDay,
+      },
+    });
+
+    if (status !== "Available" && !tableStat) {
+      const newTableStat = {
+        tableId,
+        status,
+        date,
+      };
+      await TableStat.create(newTableStat);
+    } else if (status === "Available") {
+      await TableStat.findOneAndDelete({
+        tableId: tableId,
+        date: { $gte: startOfDay, $lte: endOfDay },
+      });
+    } else {
+      await TableStat.findOneAndUpdate(
+        {
+          tableId: tableId,
+          date: { $gte: startOfDay, $lte: endOfDay },
+        },
+        { status: status }
+      );
+    }
+
+    res.status(200).json({
+      message: "Table updated",
+    });
+  } catch (error) {
+    res.status(500).json({message: error.message})
+  }
+})
+
 //delete table
 router.delete("/table/:id", verifyToken("admin"), async (req, res) => {
   try {

@@ -5,6 +5,7 @@ const User = require("../models/userModel");
 const verifyToken = require("../middleware/verifyToken");
 const Discount = require("../models/discountModel");
 const { getOrderNumber } = require("../utils/counterUtils");
+const { getOrderAggregationPipeline } = require("../utils/orderUtils");
 
 router.get("/order", async (req, res) => {
   try {
@@ -58,106 +59,9 @@ router.get("/order", async (req, res) => {
       match.orderType = selectedOrderType;
     }
 
-    const orders = await Order.aggregate([
-      { $match: match },
-
-      {
-        $lookup: {
-          from: "users",
-          localField: "userId",
-          foreignField: "_id",
-          as: "userInfo",
-        },
-      },
-      {
-        $lookup: {
-          from: "tables",
-          localField: "tableId",
-          foreignField: "_id",
-          as: "tableInfo",
-        },
-      },
-      {
-        $lookup: {
-          from: "products",
-          localField: "products.productId",
-          foreignField: "_id",
-          as: "productInfo",
-        },
-      },
-      {
-        $unwind: {
-          path: "$userInfo",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-      {
-        $unwind: {
-          path: "$tableInfo",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-      {
-        $unwind: {
-          path: "$profuctInfo",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-      {
-        $match: {
-          $or: [
-            { "userInfo.username": { $regex: search, $options: "i" } },
-            { "userInfo.useremail": { $regex: search, $options: "i" } },
-            { orderNumber: { $regex: search, $options: "i" } },
-            { userInfo: { $eq: null } },
-          ],
-        },
-      },
-      {
-        $addFields: {
-          "productInfo.quantity": {
-            $arrayElemAt: [
-              "$products.quantity",
-              {
-                $indexOfArray: [
-                  "$products.productId",
-                  "$productInfo._id",
-                ],
-              },
-            ],
-          },
-        },
-      },
-      {
-        $project: {
-          _id: 1,
-          orderNumber: 1,
-          userInfo: {
-            _id: 1,
-            username: 1,
-            useremail: 1,
-          },
-          tableInfo: {
-            _id: 1,
-            tableNumber: 1,
-          },
-          orderType: 1,
-          productInfo: {
-            _id: 1,
-            productName: 1,
-            productPrice: 1,
-            quantity: 1
-          },
-          fee: 1,
-          paymentMethod: 1,
-          paymentStatus: 1,
-          createdAt: 1,
-        },
-      },
-      { $sort: selectedSort },
-      { $skip: skip },
-      { $limit: selectedLimit },
-    ]).exec();
+    const orders = await Order.aggregate(
+      getOrderAggregationPipeline(match, selectedSort, skip, selectedLimit)
+    ).exec();
 
     const totalDocuments = await Order.aggregate([
       {
@@ -184,14 +88,15 @@ router.get("/order", async (req, res) => {
 //create order
 router.post("/order", verifyToken("cashier"), async (req, res) => {
   try {
+    const cashierId = req.user._id;
     const {
       products,
       finalPrice,
       paymentMethod,
       tableId,
       customerEmail,
-      cashierId,
       discountId,
+      cashAmount,
     } = req.body;
     if (
       !products ||
@@ -199,6 +104,9 @@ router.post("/order", verifyToken("cashier"), async (req, res) => {
       !finalPrice ||
       !paymentMethod
     ) {
+      return res.status(400).json({ message: "Request is incomplete" });
+    }
+    if (paymentMethod === "Cash" && !cashAmount) {
       return res.status(400).json({ message: "Request is incomplete" });
     }
 
@@ -240,19 +148,24 @@ router.post("/order", verifyToken("cashier"), async (req, res) => {
         userId: user ? user._id : null,
         tableId: tableId || null,
         orderType: "cashier",
-        cashier: cashierId,
-        discount: discountId,
+        cashierId: cashierId,
+        discountId: discountId,
         products: products,
         fee: finalPrice,
         paymentMethod,
+        cashAmount,
         paymentStatus: "Paid",
       });
 
       await newOrder.save();
+      const match = { _id: newOrder._id };
+      const formattedOrder = await Order.aggregate(
+        getOrderAggregationPipeline(match)
+      ).exec();
 
       res.status(201).json({
         message: "New order created successfully with cash payment.",
-        orderId: newOrder._id,
+        data: formattedOrder[0],
       });
       //online payment
     } else if (paymentMethod === "Online") {
@@ -261,7 +174,7 @@ router.post("/order", verifyToken("cashier"), async (req, res) => {
         userId: user ? user._id : null,
         tableId: tableId || null,
         orderType: "cashier",
-        discount: discountId,
+        discountId: discountId,
         products: products,
         fee: finalPrice,
       });

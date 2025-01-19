@@ -18,7 +18,7 @@ router.get("/reservation", async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
     const paymentStatus = req.query.paymentStatus || "";
-    const resType = req.query.orderType || "";
+    const resType = req.query.resType || "";
     let sort = req.query.sort || "default";
 
     //limit handling

@@ -137,10 +137,10 @@ POST http://localhost:8080/api/discount
 Content-Type: application/json
 
 {
-    "discountCode": "TEST5",
-    "discountValue": 10000,
-    "discountType": "fixed",
-    "expiryDate": "2025-01-20",
+    "discountCode": "DISC5",
+    "discountValue": 10,
+    "discountType": "percentage",
+    "expiryDate": "2025-01-30",
     "costInCoins": 50
 }
 

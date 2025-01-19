@@ -22,12 +22,12 @@ const orderSchema = new mongoose.Schema(
       required: true,
       enum: ["cashier", "online"],
     },
-    cashier: {
+    cashierId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       default: null,
     },
-    discount: {
+    discountId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Discount",
       default: null,
@@ -65,6 +65,11 @@ const orderSchema = new mongoose.Schema(
     paymentMethod: {
       type: String,
       default: "",
+    },
+    //if PM = cash
+    cashAmount: {
+      type: Number,
+      default: null,
     },
     paymentStatus: {
       type: String,
