@@ -206,11 +206,16 @@ router.post("/order", verifyToken("cashier"), async (req, res) => {
       const midtransToken = await snap.createTransactionToken(parameter);
       await Order.findByIdAndUpdate(newOrder._id, { snapToken: midtransToken });
 
+      const match = { _id: newOrder._id };
+      const formattedOrder = await Order.aggregate(
+        getOrderAggregationPipeline(match)
+      ).exec();
+
       res.status(201).json({
         message:
           "New order created successfully! Please proceed with online payment.",
         snapToken: midtransToken,
-        orderId: newOrder._id,
+        data: formattedOrder[0]
       });
     } else {
       res.status(400).json({ message: "Invalid payment method" });
