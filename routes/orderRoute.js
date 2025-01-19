@@ -164,7 +164,7 @@ router.post("/order", verifyToken("cashier"), async (req, res) => {
       ).exec();
 
       res.status(201).json({
-        message: "New order created successfully with cash payment.",
+        message: "New order created successfully!",
         data: formattedOrder[0],
       });
       //online payment

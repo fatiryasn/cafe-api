@@ -1,4 +1,4 @@
-const getOrderAggregationPipeline = (match, sort, skip, limit) => [
+const getOrderAggregationPipeline = (match, sort, skip, limit, search) => [
   { $match: match || {} },
   {
     $lookup: {
@@ -76,5 +76,69 @@ const getOrderAggregationPipeline = (match, sort, skip, limit) => [
   { $limit: limit || 50 },
 ];
 
+const getResAggregationPipeline = (match, sort, skip, limit, search) => [
+  { $match: match },
+  {
+    $lookup: {
+      from: "users",
+      localField: "userId",
+      foreignField: "_id",
+      as: "userInfo",
+    },
+  },
+  {
+    $lookup: {
+      from: "tables",
+      localField: "tableIds",
+      foreignField: "_id",
+      as: "tableInfo",
+    },
+  },
+  {
+    $unwind: {
+      path: "$userInfo",
+      preserveNullAndEmptyArrays: true,
+    },
+  },
+  {
+    $match: {
+      $or: [
+        { "userInfo.username": { $regex: search, $options: "i" } },
+        { "userInfo.useremail": { $regex: search, $options: "i" } },
+        { resNumber: { $regex: search, $options: "i" } },
+        { userInfo: { $eq: null } },
+      ],
+    },
+  },
+  {
+    $project: {
+      _id: 1,
+      resNumber: 1,
+      userInfo: {
+        _id: 1,
+        username: 1,
+        useremail: 1,
+        phoneNumber: 1,
+      },
+      customerDetails: 1,
+      tableInfo: {
+        _id: 1,
+        tableNumber: 1,
+      },
+      reservationDate: 1,
+      reservationTime: 1,
+      reservationStatus: 1,
+      resType: 1,
+      paymentMethod: 1,
+      paymentStatus: 1,
+      notes: 1,
+      createdAt: 1,
+    },
+  },
+  { $sort: sort },
+  { $skip: skip },
+  { $limit: limit },
+]; 
 
-module.exports = {getOrderAggregationPipeline}
+
+module.exports = {getOrderAggregationPipeline, getResAggregationPipeline}

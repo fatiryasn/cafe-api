@@ -87,7 +87,7 @@ router.get("/user/:id", async (req, res) => {
   }
 })
 
-//get user by id
+//get user by email
 router.get("/user-by-email/:email", async (req, res) => {
   try {
     const useremail = req.params.email
@@ -103,7 +103,8 @@ router.get("/user-by-email/:email", async (req, res) => {
     res.status(200).json({
       _id: user._id,
       username: user.username,
-      useremail: user.useremail
+      useremail: user.useremail,
+      phoneNumber: user.phoneNumber,
     })
   } catch (error) {
     res.status(500).json({ message: error.message }); 

@@ -9,6 +9,7 @@ const {
   cancelMidtransTransaction,
 } = require("../utils/midtrans");
 const { getResNumber } = require("../utils/counterUtils");
+const { getResAggregationPipeline } = require("../utils/orderUtils");
 
 //get all reservations
 router.get("/reservation", async (req, res) => {
@@ -63,68 +64,15 @@ router.get("/reservation", async (req, res) => {
       match.resType = selectedResType;
     }
 
-    const reservations = await Reservation.aggregate([
-      { $match: match },
-      {
-        $lookup: {
-          from: "users",
-          localField: "userId",
-          foreignField: "_id",
-          as: "userInfo",
-        },
-      },
-      {
-        $lookup: {
-          from: "tables",
-          localField: "tableIds",
-          foreignField: "_id",
-          as: "tableInfo",
-        },
-      },
-      {
-        $unwind: {
-          path: "$userInfo",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-      {
-        $match: {
-          $or: [
-            { "userInfo.username": { $regex: search, $options: "i" } },
-            { "userInfo.useremail": { $regex: search, $options: "i" } },
-            { orderNumber: { $regex: search, $options: "i" } },
-            { userInfo: { $eq: null } },
-          ],
-        },
-      },
-      {
-        $project: {
-          _id: 1,
-          resNumber: 1,
-          userInfo: {
-            _id: 1,
-            username: 1,
-            useremail: 1,
-            phoneNumber: 1,
-          },
-          tableInfo: {
-            _id: 1,
-            tableNumber: 1,
-          },
-          reservationDate: 1,
-          reservationTime: 1,
-          reservationStatus: 1,
-          resType: 1,
-          paymentMethod: 1,
-          paymentStatus: 1,
-          notes: 1,
-          createdAt: 1,
-        },
-      },
-      { $sort: selectedSort },
-      { $skip: skip },
-      { $limit: selectedLimit },
-    ]).exec();
+    const reservations = await Reservation.aggregate(
+      getResAggregationPipeline(
+        match,
+        selectedSort,
+        skip,
+        selectedLimit,
+        search
+      )
+    ).exec();
 
     const totalDocuments = await Reservation.aggregate([
       {
@@ -226,6 +174,131 @@ router.post("/reservation", verifyToken(), async (req, res) => {
       token: midtransToken,
       reservationId: newReservation._id,
     });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+//create reservation (cas)
+router.post("/reservation-cas", verifyToken("cashier"), async (req, res) => {
+  try {
+    const {
+      username,
+      phoneNumber,
+      useremail,
+      tableIds,
+      reservationDate,
+      reservationTime,
+      paymentMethod,
+      notes,
+    } = req.body;
+
+    if (
+      !username ||
+      !phoneNumber ||
+      !reservationDate ||
+      !reservationTime ||
+      !paymentMethod ||
+      !Array.isArray(tableIds) ||
+      tableIds.length === 0
+    ) {
+      return res.status(400).json({ message: "Request is incomplete" });
+    }
+
+    let user;
+
+    //update user (member)
+    if (useremail) {
+      user = await User.findOneAndUpdate(
+        { useremail: useremail },
+        { username, phoneNumber, loyaltyCoins: 50 }
+      );
+      if (!user) {
+        return res.status(404).json({ message: "Email not found" });
+      }
+    }
+
+    //new table stats
+    await TableStat.insertMany(
+      tableIds.map((id) => ({
+        tableId: id,
+        date: reservationDate,
+        status: "Reserved",
+      }))
+    );
+
+    const newResNumber = await getResNumber();
+    let newReservation;
+    //cash payment
+    if (paymentMethod === "Cash") {
+      newReservation = new Reservation({
+        resNumber: newResNumber,
+        resType: "cashier",
+        userId: user ? user._id : null,
+        customerDetails: useremail
+          ? null
+          : {
+              name: username,
+              phoneNumber: phoneNumber,
+            },
+        tableIds,
+        reservationDate,
+        reservationTime,
+        paymentMethod: "Cash",
+        paymentStatus: "Paid",
+        notes,
+        reservationStatus: "Pending",
+      });
+
+      await newReservation.save();
+      res.status(201).json({
+        message: "New reservation created successfully!",
+      });
+      //online payment
+    } else if (paymentMethod === "Online") {
+      newReservation = new Reservation({
+        resNumber: newResNumber,
+        resType: "cashier",
+        userId: user ? user._id : null,
+        customerDetails: useremail
+          ? null
+          : {
+              name: username,
+              phoneNumber: phoneNumber,
+            },
+        tableIds,
+        reservationDate,
+        reservationTime,
+        notes,
+        reservationStatus: "Pending",
+      });
+      await newReservation.save();
+
+      //midtrans transaction
+      const parameter = {
+        transaction_details: {
+          order_id: `res-${newReservation._id}`,
+          gross_amount: 30000,
+        },
+        credit_card: {
+          secure: true,
+        },
+        customer_details: {
+          first_name: username,
+          email: useremail || null,
+          phone: phoneNumber,
+        },
+      };
+      const midtransToken = await snap.createTransactionToken(parameter);
+      await Reservation.findByIdAndUpdate(newReservation._id, {
+        snapToken: midtransToken,
+      });
+      res.status(201).json({
+        message: "Reservation created successfully",
+        token: midtransToken,
+        reservationId: newReservation._id,
+      });
+    }
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

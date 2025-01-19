@@ -7,10 +7,25 @@ const reservationSchema = new mongoose.Schema(
       required: true,
       unique: true
     },
+    resType: {
+      type: String,
+      required: true,
+      enum: ["cashier", "online"]
+    },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
-      required: true,
+      default: null,
       ref: "User",
+    },
+    customerDetails: {
+      name: {
+        type: String,
+        maxLength: 20
+      },
+      phoneNumber: {
+        type: Number,
+        maxLength: 14
+      }
     },
     tableIds: [
       {
@@ -19,11 +34,6 @@ const reservationSchema = new mongoose.Schema(
         ref: "Table",
       },
     ],
-    resType: {
-      type: String,
-      required: true,
-      enum: ["cashier", "online"]
-    },
     reservationDate: {
       type: Date,
       required: true,
