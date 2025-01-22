@@ -27,6 +27,10 @@ const productSchema = new mongoose.Schema({
         enum: ['drink', 'food', 'other'],
         required: true
     },
+    totalSales: {
+        type: Number,
+        default: 0,
+    },
     isAvailable:{
         type: String,
         enum: ['Available', 'Unavailable'],

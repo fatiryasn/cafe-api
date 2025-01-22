@@ -11,8 +11,8 @@ router.get("/product", async (req, res) => {
     const search = req.query.search || "";
     const category = req.query.category || "";
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    let sort = req.query.sort || "default";
+    const limit = parseInt(req.query.limit) || 30;
+    let sort = req.query.sort || "";
 
     //sort handling
     switch (sort) {
@@ -22,17 +22,17 @@ router.get("/product", async (req, res) => {
       case "dsc":
         sort = { productName: -1 };
         break;
-      case "newest":
-        sort = { createdAt: -1 };
+      case "oldest":
+        sort = { createdAt: 1 };
         break;
       default:
-        sort = "_id";
+        sort = { createdAt: -1 };
     }
 
     //limit handling
     const skip = (page - 1) * limit;
-    const limitOptions = [10, 20, 50];
-    const selectedLimit = limitOptions.includes(limit) ? limit : 10;
+    const limitOptions = [30, 50, 80];
+    const selectedLimit = limitOptions.includes(limit) ? limit : 30;
 
     //category handling
     const catOptions = ["drink", "food", "other"];
@@ -69,6 +69,30 @@ router.get("/product", async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+});
+
+//get product stats
+router.get("/product-stats", async (req, res) => {
+  try {
+    //count each cat
+    const stats = await Product.aggregate([
+      {
+        $group: {
+          _id: "$productCategory",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    //5 best sellings
+    const products = await Product.find()
+      .sort({ totalSales: -1 })
+      .limit(5)
+      .exec();
+    res.status(200).json({ catCount: stats, bestSellings: products });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 });
 

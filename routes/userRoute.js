@@ -25,16 +25,16 @@ router.get("/user", verifyToken("admin"), async (req, res) => {
       case "dsc":
         sort = { username: -1 };
         break;
-      case "newest":
-        sort = { createdAt: -1 };
+      case "oldest":
+        sort = { createdAt: 1 };
         break;
       default:
-        sort = "_id";
+        sort = { createdAt: -1 };
     }
 
     //limit handling
     const skip = (page - 1) * limit;
-    const limitOptions = [10, 20, 50];
+    const limitOptions = [30, 50, 80];
     const selectedLimit = limitOptions.includes(limit) ? limit : 10;
 
     const searchVal = {
@@ -43,7 +43,7 @@ router.get("/user", verifyToken("admin"), async (req, res) => {
         { useremail: { $regex: search, $options: "i" } },
       ],
     };
-    const roleOptions = ["admin", "customer"];
+    const roleOptions = ["admin", "customer", "cashier"];
     const selectedRole =
       roleOptions.includes(role) && search === "" ? { role: role } : {};
 
@@ -56,7 +56,7 @@ router.get("/user", verifyToken("admin"), async (req, res) => {
       .skip(skip)
       .collation(collation)
       .exec();
- 
+
     return res.status(200).json({
       data: users,
       dataCount: await User.countDocuments(query),
@@ -69,6 +69,30 @@ router.get("/user", verifyToken("admin"), async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
+//get user stats
+router.get("/user-stats", async (req, res) => {
+  try {
+    //count each cat
+    const stats = await User.aggregate([
+      {
+        $group: {
+          _id: "$role",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    //5 most coins
+    const users = await User.find()
+      .sort({ loyaltyCoins: -1 })
+      .limit(5)
+      .exec();
+    res.status(200).json({ roleCount: stats, mostCoins: users });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+})
 
 //get one user
 router.get("/user/:id", async (req, res) => {

@@ -2,11 +2,13 @@ const router = require("express").Router();
 const { snap } = require("../utils/midtrans");
 const Order = require("../models/orderModel");
 const User = require("../models/userModel");
+const Product = require("../models/productModel")
 const verifyToken = require("../middleware/verifyToken");
 const Discount = require("../models/discountModel");
 const { getOrderNumber } = require("../utils/counterUtils");
 const { getOrderAggregationPipeline } = require("../utils/orderUtils");
 
+//get all order
 router.get("/order", async (req, res) => {
   try {
     const search = req.query.search || "";
@@ -81,9 +83,67 @@ router.get("/order", async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
-    console.error(error);
   }
 });
+
+//get user order
+router.get("/order-user", verifyToken(), async (req, res) => {
+  try {
+    const userId = req.user._id
+    const search = req.query.search || "";
+    const date = req.query.date || "";
+    let sort = req.query.sort || "default";
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Cant find user" });
+    }
+
+    //filter
+    const match = { userId: user._id };
+
+    const sortOptions = {
+      asc: { "userInfo.username": 1 },
+      dsc: { "userInfo.username": -1 },
+      newest: { createdAt: -1 },
+      oldest: { createdAt: 1 },
+    };
+    const selectedSort = sortOptions[sort] || sortOptions.newest;
+
+    if (date) {
+      const queryDate = new Date(date);
+      queryDate.setHours(0, 0, 0, 0);
+      const startOfDay = new Date(queryDate);
+      const endOfDay = new Date(queryDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      match.createdAt = { $gte: startOfDay, $lte: endOfDay };
+    }
+
+
+    const orders = await Order.aggregate(
+      getOrderAggregationPipeline(match, selectedSort, null, null, search)
+    ).exec()
+
+    const totalDocuments = await Order.aggregate([
+      {
+        $match: match,
+      },
+      {
+        $count: "totalCount",
+      },
+    ]);
+    const totalDataCount = totalDocuments[0]?.totalCount || 0;
+
+    return res.status(200).json({
+      data: orders,
+      dataCount: totalDataCount,
+    });
+
+  } catch (error) {
+    res.status(500).json({message: error.message})
+  }
+})
 
 //create order
 router.post("/order", verifyToken("cashier"), async (req, res) => {
@@ -116,7 +176,7 @@ router.post("/order", verifyToken("cashier"), async (req, res) => {
     if (customerEmail) {
       user = await User.findOneAndUpdate(
         { useremail: customerEmail },
-        { loyaltyCoins: 50 }
+        { $inc: {loyaltyCoins: 50} }
       );
       if (!user) {
         return res.status(404).json({ message: "User not found" });
@@ -137,6 +197,15 @@ router.post("/order", verifyToken("cashier"), async (req, res) => {
         return res.status(400).json({ message: "Discount code is used" });
       }
       await Discount.findByIdAndUpdate(discount._id, { forUserId: user._id });
+    }
+
+    //inc total sales
+    for (const product of products) {
+      await Product.findByIdAndUpdate(
+        product.productId,
+        { $inc: { totalSales: product.quantity } },
+        { new: true }
+      );
     }
 
     const newOrderNumber = await getOrderNumber();

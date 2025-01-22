@@ -1,10 +1,15 @@
+const verifyToken = require("../middleware/verifyToken");
 const Comment = require("../models/commentModel");
 const Order = require("../models/orderModel");
 const Product = require("../models/productModel");
 const Reservation = require("../models/reservationModel");
 const Table = require("../models/tableModel");
 const User = require("../models/userModel");
-const {updateResPaymentStatus, updateOrdPaymentStatus} = require("../utils/midtrans")
+const {
+  updateResPaymentStatus,
+  updateOrdPaymentStatus,
+} = require("../utils/midtrans");
+const { getOrderAggregationPipeline, getResAggregationPipeline } = require("../utils/orderUtils");
 
 const router = require("express").Router();
 
@@ -35,21 +40,23 @@ router.post("/midtrans-notification", (req, res) => {
   const data = req.body;
 
   if (data.order_id.startsWith("order-")) {
-    Order.findOne({_id: data.order_id.split("-")[1]}).then((order) => {
-        if(order){
-            updateOrdPaymentStatus(data.order_id, data).then((result) => {
-                console.log("result ",result)
-            })
-        }
-    })
-  } else if (data.order_id.startsWith("res-")) {
-    Reservation.findOne({ _id: data.order_id.split("-")[1] }).then((reservation) => {
-      if (reservation) {
-        updateResPaymentStatus(data.order_id, data).then((result) => {
+    Order.findOne({ _id: data.order_id.split("-")[1] }).then((order) => {
+      if (order) {
+        updateOrdPaymentStatus(data.order_id, data).then((result) => {
           console.log("result ", result);
         });
       }
     });
+  } else if (data.order_id.startsWith("res-")) {
+    Reservation.findOne({ _id: data.order_id.split("-")[1] }).then(
+      (reservation) => {
+        if (reservation) {
+          updateResPaymentStatus(data.order_id, data).then((result) => {
+            console.log("result ", result);
+          });
+        }
+      }
+    );
   }
 
   return res.status(200).json({
@@ -86,7 +93,30 @@ router.get("/daily-revenue", async (req, res) => {
       total: totalRevenue,
     });
   } catch (error) {
-    // Menangani error jika ada masalah
+    res.status(500).json({ message: error.message });
+  }
+});
+
+//get user loyalty
+router.get("/user-loyalty", verifyToken(), async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Cant find user" });
+    }
+
+    const ordCount = await Order.countDocuments({userId: userId})
+    const resCount = await Reservation.countDocuments({ userId: userId });
+
+    res.status(200).json({
+      userData: user,
+      ordCount,
+      resCount,
+    });
+  } catch (error) {
+    console.error(error)
     res.status(500).json({ message: error.message });
   }
 });

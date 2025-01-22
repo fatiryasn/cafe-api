@@ -1,4 +1,4 @@
-const getOrderAggregationPipeline = (match, sort, skip, limit, search="") => [
+const getOrderAggregationPipeline = (match, sort, skip, limit, search = "") => [
   { $match: match || {} },
   {
     $lookup: {
@@ -80,12 +80,12 @@ const getOrderAggregationPipeline = (match, sort, skip, limit, search="") => [
     },
   },
   { $sort: sort || { createdAt: -1 } },
-  { $skip: skip || 0 },
-  { $limit: limit || 50 },
+  ...(skip != null ? [{ $skip: skip }] : []),
+  ...(limit != null ? [{ $limit: limit }] : []),
 ];
 
 const getResAggregationPipeline = (match, sort, skip, limit, search="") => [
-  { $match: match },
+  { $match: match || {} },
   {
     $lookup: {
       from: "users",
@@ -142,9 +142,9 @@ const getResAggregationPipeline = (match, sort, skip, limit, search="") => [
       createdAt: 1,
     },
   },
-  { $sort: sort },
-  { $skip: skip },
-  { $limit: limit },
+  { $sort: sort || {createdAt: -1} },
+  { $skip: skip || 0 },
+  { $limit: limit || 50 },
 ];
 
 module.exports = { getOrderAggregationPipeline, getResAggregationPipeline };

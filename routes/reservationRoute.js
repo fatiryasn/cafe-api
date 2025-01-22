@@ -95,6 +95,66 @@ router.get("/reservation", async (req, res) => {
   }
 });
 
+//get user reservations
+router.get("/res-user", verifyToken(), async (req, res) => {
+  try {
+    const userId = req.user._id
+    const search = req.query.search || "";
+    const date = req.query.date || "";
+    let sort = req.query.sort || "default";
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Cant find user" });
+    }
+
+    //filter
+    const match = { userId: user._id };
+
+    const sortOptions = {
+      asc: { "userInfo.username": 1 },
+      dsc: { "userInfo.username": -1 },
+      newest: { createdAt: -1 },
+      oldest: { createdAt: 1 },
+    };
+    const selectedSort = sortOptions[sort] || sortOptions.newest;
+
+    if (date) {
+      const queryDate = new Date(date);
+      queryDate.setHours(0, 0, 0, 0);
+      const startOfDay = new Date(queryDate);
+      const endOfDay = new Date(queryDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      match.createdAt = { $gte: startOfDay, $lte: endOfDay };
+    }
+
+
+    const orders = await Reservation.aggregate(
+      getResAggregationPipeline(match, selectedSort, null, null, search)
+    ).exec()
+
+    const totalDocuments = await Reservation.aggregate([
+      {
+        $match: match,
+      },
+      {
+        $count: "totalCount",
+      },
+    ]);
+    const totalDataCount = totalDocuments[0]?.totalCount || 0;
+
+    return res.status(200).json({
+      data: orders,
+      dataCount: totalDataCount,
+    });
+
+  } catch (error) {
+    res.status(500).json({message: error.message})
+  }
+})
+
+
 //create reservation
 router.post("/reservation", verifyToken(), async (req, res) => {
   try {
@@ -121,7 +181,7 @@ router.post("/reservation", verifyToken(), async (req, res) => {
 
     const user = await User.findOneAndUpdate(
       { _id: req.user._id },
-      { username, useremail, phoneNumber }
+      { username, useremail, phoneNumber, $inc: { loyaltyCoins: 50 } }
     );
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -211,7 +271,7 @@ router.post("/reservation-cas", verifyToken("cashier"), async (req, res) => {
     if (useremail) {
       user = await User.findOneAndUpdate(
         { useremail: useremail },
-        { username, phoneNumber, loyaltyCoins: 50 }
+        { username, phoneNumber, $inc: { loyaltyCoins: 50 } }
       );
       if (!user) {
         return res.status(404).json({ message: "Email not found" });
