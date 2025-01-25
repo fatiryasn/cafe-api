@@ -84,7 +84,7 @@ const getOrderAggregationPipeline = (match, sort, skip, limit, search = "") => [
   ...(limit != null ? [{ $limit: limit }] : []),
 ];
 
-const getResAggregationPipeline = (match, sort, skip, limit, search="") => [
+const getResAggregationPipeline = (match, sort, skip, limit, search = "") => [
   { $match: match || {} },
   {
     $lookup: {
@@ -106,6 +106,13 @@ const getResAggregationPipeline = (match, sort, skip, limit, search="") => [
     $unwind: {
       path: "$userInfo",
       preserveNullAndEmptyArrays: true,
+    },
+  },
+  {
+    $addFields: {
+      sortField: {
+        $ifNull: ["$userInfo.username", "$customerDetails.name"],
+      },
     },
   },
   {
@@ -140,11 +147,53 @@ const getResAggregationPipeline = (match, sort, skip, limit, search="") => [
       paymentStatus: 1,
       notes: 1,
       createdAt: 1,
+      sortField: 1,
     },
   },
-  { $sort: sort || {createdAt: -1} },
+  { $sort: sort || { createdAt: -1 } },
   { $skip: skip || 0 },
   { $limit: limit || 50 },
 ];
 
-module.exports = { getOrderAggregationPipeline, getResAggregationPipeline };
+const getComAggregationPipeline = (match, sort, skip, limit, search = "") => [
+  { $match: match || {} },
+  {
+    $lookup: {
+      from: "users",
+      localField: "userId",
+      foreignField: "_id",
+      as: "userInfo",
+    },
+  },
+  {
+    $unwind: {
+      path: "$userInfo",
+      preserveNullAndEmptyArrays: true,
+    },
+  },
+  {
+    $match: {
+      $or: [
+        { "userInfo.username": { $regex: search, $options: "i" } },
+      ],
+    },
+  },
+  {
+    $project: {
+      _id: 1,
+      userInfo: {
+        _id: 1,
+        username: 1,
+        useremail: 1,
+      },
+      comment: 1,
+      status: 1,
+      createdAt: 1,
+    },
+  },
+  { $sort: sort || { createdAt: -1 } },
+  { $skip: skip || 0 },
+  { $limit: limit || 30 },
+];
+
+module.exports = { getOrderAggregationPipeline, getResAggregationPipeline, getComAggregationPipeline };

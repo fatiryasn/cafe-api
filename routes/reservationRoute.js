@@ -19,6 +19,7 @@ router.get("/reservation", async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
     const paymentStatus = req.query.paymentStatus || "";
+    const reservationStatus = req.query.reservationStatus || "";
     const resType = req.query.resType || "";
     let sort = req.query.sort || "default";
 
@@ -31,8 +32,8 @@ router.get("/reservation", async (req, res) => {
     const match = {};
 
     const sortOptions = {
-      asc: { "userInfo.username": 1 },
-      dsc: { "userInfo.username": -1 },
+      asc: { sortField: 1 },
+      dsc: { sortField: -1 },
       newest: { createdAt: -1 },
       oldest: { createdAt: 1 },
     };
@@ -50,17 +51,23 @@ router.get("/reservation", async (req, res) => {
 
     if (paymentStatus) {
       const validPaymentStatus = ["Pending", "Paid", "Cancelled"];
-      const selectedPaymentStatus =
-        validPaymentStatus.includes(paymentStatus)
-          ? paymentStatus
-          : null;
+      const selectedPaymentStatus = validPaymentStatus.includes(paymentStatus)
+        ? paymentStatus
+        : null;
       match.paymentStatus = selectedPaymentStatus;
+    }
+
+    if (reservationStatus) {
+      const validResStatus = ["Pending", "Confirmed", "Cancelled"];
+      const selectedResStatus = validResStatus.includes(reservationStatus)
+        ? reservationStatus
+        : null;
+      match.reservationStatus = selectedResStatus;
     }
 
     if (resType) {
       const validResType = ["cashier", "online"];
-      const selectedResType =
-        validResType.includes(resType) ? resType : null;
+      const selectedResType = validResType.includes(resType) ? resType : null;
       match.resType = selectedResType;
     }
 
@@ -98,7 +105,7 @@ router.get("/reservation", async (req, res) => {
 //get user reservations
 router.get("/res-user", verifyToken(), async (req, res) => {
   try {
-    const userId = req.user._id
+    const userId = req.user._id;
     const search = req.query.search || "";
     const date = req.query.date || "";
     let sort = req.query.sort || "default";
@@ -129,10 +136,9 @@ router.get("/res-user", verifyToken(), async (req, res) => {
       match.createdAt = { $gte: startOfDay, $lte: endOfDay };
     }
 
-
     const orders = await Reservation.aggregate(
       getResAggregationPipeline(match, selectedSort, null, null, search)
-    ).exec()
+    ).exec();
 
     const totalDocuments = await Reservation.aggregate([
       {
@@ -148,12 +154,80 @@ router.get("/res-user", verifyToken(), async (req, res) => {
       data: orders,
       dataCount: totalDataCount,
     });
-
   } catch (error) {
-    res.status(500).json({message: error.message})
+    res.status(500).json({ message: error.message });
   }
-})
+});
 
+//get res stats
+router.get("/res-stats", async (req, res) => {
+  try {
+    const now = new Date();
+
+    const nearestReservation = await Reservation.aggregate(
+      getResAggregationPipeline(
+        {
+          $expr: {
+            $gte: [
+              {
+                $dateFromParts: {
+                  year: { $year: "$reservationDate" },
+                  month: { $month: "$reservationDate" },
+                  day: { $dayOfMonth: "$reservationDate" },
+                  hour: {
+                    $toInt: {
+                      $arrayElemAt: [{ $split: ["$reservationTime", ":"] }, 0],
+                    },
+                  },
+                  minute: {
+                    $toInt: {
+                      $arrayElemAt: [{ $split: ["$reservationTime", ":"] }, 1],
+                    },
+                  },
+                },
+              },
+              now,
+            ],
+          },
+        },
+        { reservationDate: 1, reservationTime: 1 },
+        0,
+        1
+      )
+    );
+
+    //revenue
+    const revenueByDate = await Reservation.aggregate([
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
+          },
+          totalRevenue: { $sum: 30000 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    //status count
+    const reservationsByStatus = await Reservation.aggregate([
+      {
+        $group: {
+          _id: "$reservationStatus",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    res.status(200).json({
+      nearestRes: nearestReservation[0],
+      revenue: revenueByDate,
+      resStatCount: reservationsByStatus,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 
 //create reservation
 router.post("/reservation", verifyToken(), async (req, res) => {
