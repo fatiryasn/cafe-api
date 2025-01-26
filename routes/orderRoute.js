@@ -2,7 +2,7 @@ const router = require("express").Router();
 const { snap } = require("../utils/midtrans");
 const Order = require("../models/orderModel");
 const User = require("../models/userModel");
-const Product = require("../models/productModel")
+const Product = require("../models/productModel");
 const verifyToken = require("../middleware/verifyToken");
 const Discount = require("../models/discountModel");
 const { getOrderNumber } = require("../utils/counterUtils");
@@ -47,22 +47,28 @@ router.get("/order", async (req, res) => {
 
     if (paymentStatus) {
       const validPaymentStatus = ["Pending", "Paid", "Cancelled"];
-      const selectedPaymentStatus =
-        validPaymentStatus.includes(paymentStatus)
-          ? paymentStatus
-          : null;
+      const selectedPaymentStatus = validPaymentStatus.includes(paymentStatus)
+        ? paymentStatus
+        : null;
       match.paymentStatus = selectedPaymentStatus;
     }
 
     if (orderType) {
       const validOrderType = ["cashier", "online"];
-      const selectedOrderType =
-        validOrderType.includes(orderType) ? orderType : null;
+      const selectedOrderType = validOrderType.includes(orderType)
+        ? orderType
+        : null;
       match.orderType = selectedOrderType;
     }
 
     const orders = await Order.aggregate(
-      getOrderAggregationPipeline(match, selectedSort, skip, selectedLimit, search)
+      getOrderAggregationPipeline(
+        match,
+        selectedSort,
+        skip,
+        selectedLimit,
+        search
+      )
     ).exec();
 
     const totalDocuments = await Order.aggregate([
@@ -89,7 +95,7 @@ router.get("/order", async (req, res) => {
 //get user order
 router.get("/order-user", verifyToken(), async (req, res) => {
   try {
-    const userId = req.user._id
+    const userId = req.user._id;
     const search = req.query.search || "";
     const date = req.query.date || "";
     let sort = req.query.sort || "default";
@@ -120,10 +126,9 @@ router.get("/order-user", verifyToken(), async (req, res) => {
       match.createdAt = { $gte: startOfDay, $lte: endOfDay };
     }
 
-
     const orders = await Order.aggregate(
       getOrderAggregationPipeline(match, selectedSort, null, null, search)
-    ).exec()
+    ).exec();
 
     const totalDocuments = await Order.aggregate([
       {
@@ -139,11 +144,49 @@ router.get("/order-user", verifyToken(), async (req, res) => {
       data: orders,
       dataCount: totalDataCount,
     });
-
   } catch (error) {
-    res.status(500).json({message: error.message})
+    res.status(500).json({ message: error.message });
   }
-})
+});
+
+//get order Stats
+router.get("/order-stats", async (req, res) => {
+  try {
+    //revenue
+    const revenueByDate = await Order.aggregate([
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
+          },
+          totalRevenue: { $sum: "$fee" },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    //top 5 orders
+    const topOrdersByFee = await Order.aggregate([
+      { $sort: { fee: -1 } },
+      { $limit: 5 },
+      {
+        $project: {
+          _id: 1,
+          orderNumber: 1,
+          fee: 1,
+          createdAt: 1,
+        },
+      },
+    ]);
+
+    res.status(200).json({
+      revenue: revenueByDate,
+      topOrders: topOrdersByFee,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 
 //create order
 router.post("/order", verifyToken("cashier"), async (req, res) => {
@@ -176,7 +219,7 @@ router.post("/order", verifyToken("cashier"), async (req, res) => {
     if (customerEmail) {
       user = await User.findOneAndUpdate(
         { useremail: customerEmail },
-        { $inc: {loyaltyCoins: 50} }
+        { $inc: { loyaltyCoins: 50 } }
       );
       if (!user) {
         return res.status(404).json({ message: "User not found" });
@@ -284,7 +327,7 @@ router.post("/order", verifyToken("cashier"), async (req, res) => {
         message:
           "New order created successfully! Please proceed with online payment.",
         snapToken: midtransToken,
-        data: formattedOrder[0]
+        data: formattedOrder[0],
       });
     } else {
       res.status(400).json({ message: "Invalid payment method" });
