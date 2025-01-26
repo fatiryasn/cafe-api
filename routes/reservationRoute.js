@@ -162,13 +162,14 @@ router.get("/res-user", verifyToken(), async (req, res) => {
 //get res stats
 router.get("/res-stats", async (req, res) => {
   try {
-    const now = new Date();
+    const now = new Date(); // Waktu UTC
+    const jakartaTime = new Date(now.getTime() + 7 * 60 * 60 * 1000);
 
     const nearestReservation = await Reservation.aggregate(
       getResAggregationPipeline(
         {
           $expr: {
-            $gte: [
+            $gt: [
               {
                 $dateFromParts: {
                   year: { $year: "$reservationDate" },
@@ -186,7 +187,7 @@ router.get("/res-stats", async (req, res) => {
                   },
                 },
               },
-              now,
+              jakartaTime,
             ],
           },
         },
@@ -195,7 +196,7 @@ router.get("/res-stats", async (req, res) => {
         1
       )
     );
-
+    
     //revenue
     const revenueByDate = await Reservation.aggregate([
       {
