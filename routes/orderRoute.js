@@ -193,10 +193,10 @@ router.post("/order", verifyToken("cashier"), async (req, res) => {
       if (discount.expiryDate < now) {
         return res.status(400).json({ message: "Discount has expired" });
       }
-      if (discount.forUserId) {
-        return res.status(400).json({ message: "Discount code is used" });
+      if (["Used", "Expired"].includes(discount.status)) {
+        return res.status(400).json({ message: "Discount code is deprecated" });
       }
-      await Discount.findByIdAndUpdate(discount._id, { forUserId: user._id });
+      await Discount.findByIdAndUpdate(discount._id, { status: "Used" });
     }
 
     //inc total sales

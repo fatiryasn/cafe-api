@@ -457,7 +457,7 @@ router.patch("/reservation/:id", async (req, res) => {
     }
     if (
       reservation.reservationDate < currentDate &&
-      reservationStatus !== "Cancelled"
+      (!["Confirmed", "Cancelled"].includes(reservationStatus))
     ) {
       return res
         .status(400)

@@ -22,11 +22,13 @@ const discountSchema = new mongoose.Schema({
         type: Number,
         required: true
     },
-    forUserId: {
-        type: mongoose.Schema.Types.ObjectId,
-        default: null,
-        ref: 'User'
+    status: {
+        type: String,
+        enum: ["Available", "Used", "Expired"],
+        default: "Available"
     }
+}, {
+    timestamps: true
 })
 
 const Discount = mongoose.model("Discount", discountSchema, 'discounts')
