@@ -338,16 +338,14 @@ router.post("/order", verifyToken("cashier"), async (req, res) => {
 });
 
 //delete order
-router.delete("/order/:id", async (req, res) => {
+router.delete("/order/:id", verifyToken("admin"), async (req, res) => {
   try {
     const orderId = req.params.id;
 
-    const order = await Order.findById(orderId);
+    const order = await Order.findByIdAndDelete(orderId);
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }
-
-    await Order.findByIdAndDelete(orderId);
 
     res.status(200).json({
       message: "Order deleted",

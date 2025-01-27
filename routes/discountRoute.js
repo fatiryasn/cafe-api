@@ -82,7 +82,7 @@ router.get("/discount-stats", async (req, res) => {
     //nearest expiry
     const currentDate = new Date();
     const nearestExpiry = await Discount.findOne({
-      expiryDate: { $gt: currentDate },
+      expiryDate: { $gt: currentDate }, status: "Available"
     })
       .sort({ expiryDate: 1 })
       .select("expiryDate")
@@ -91,7 +91,7 @@ router.get("/discount-stats", async (req, res) => {
     let nearestExpiryData = [];
     if (nearestExpiry) {
       nearestExpiryData = await Discount.find({
-        expiryDate: nearestExpiry.expiryDate,
+        expiryDate: nearestExpiry.expiryDate, status: "Available",
       }).exec();
     }
 

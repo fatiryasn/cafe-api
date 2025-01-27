@@ -121,4 +121,94 @@ router.get("/user-loyalty", verifyToken(), async (req, res) => {
   }
 });
 
+//rev over time
+router.get("/total-revenue", async (req, res) => {
+  try {
+    const { filter } = req.query;
+
+    let startDate, endDate, groupBy;
+    const now = new Date();
+
+    switch (filter) {
+      case "daily":
+        startDate = new Date(now);
+        startDate.setDate(startDate.getDate() - 30);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date();
+        endDate.setHours(23, 59, 59, 999);
+        groupBy = "daily";
+        break;
+
+      case "monthly":
+        startDate = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+        endDate = new Date(
+          now.getFullYear(),
+          now.getMonth() + 1,
+          0,
+          23,
+          59,
+          59,
+          999
+        );
+        groupBy = "monthly";
+        break;
+
+      case "yearly":
+        startDate = new Date(now.getFullYear() - 5, 0, 1);
+        endDate = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+        groupBy = "yearly";
+        break;
+
+      default:
+        return res
+          .status(400)
+          .json({ message: "Invalid filter. Use daily, monthly, or yearly." });
+    }
+
+    const orders = await Order.find({
+      createdAt: { $gte: startDate, $lte: endDate },
+    });
+    const reservations = await Reservation.find({
+      createdAt: { $gte: startDate, $lte: endDate },
+    });
+
+    const revenueData = {};
+
+    const getGroupingKey = (date) => {
+      const d = new Date(date);
+      if (groupBy === "daily") return d.toISOString().split("T")[0]
+      if (groupBy === "monthly")
+        return `${d.getFullYear()}-${d.getMonth() + 1}`;
+      if (groupBy === "yearly") return `${d.getFullYear()}`;
+    };
+
+    orders.forEach((order) => {
+      const key = getGroupingKey(order.createdAt);
+      revenueData[key] = (revenueData[key] || 0) + order.fee;
+    });
+    reservations.forEach((reservation) => {
+      const key = getGroupingKey(reservation.createdAt);
+      revenueData[key] = (revenueData[key] || 0) + 30000; 
+    });
+
+    const revenueArray = Object.keys(revenueData)
+      .sort()
+      .map((key) => ({
+        date: key,
+        revenue: revenueData[key],
+      }));
+
+    res.status(200).json(revenueArray);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+
+
+
+module.exports = router;
+
+
 module.exports = router;

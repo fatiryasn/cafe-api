@@ -74,6 +74,34 @@ router.get("/table-for-cas", async (req, res) => {
   }
 });
 
+//get table stats
+router.get("/table-stats", async (req, res) => {
+  try {
+    const tableStats = await TableStat.aggregate([
+      {
+        $match: { status: "Reserved" },
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: "%Y-%m-%d", date: "$date" },
+          },
+          reservedCount: { $sum: 1 },
+        },
+      },
+      {
+        $sort: { _id: 1 },
+      },
+    ]);
+
+    res.status(200).json({
+      data: tableStats,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 //create new table
 router.post("/table", verifyToken("admin"), async (req, res) => {
   try {
