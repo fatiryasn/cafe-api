@@ -6,7 +6,7 @@ const jwt = require("jsonwebtoken");
 const verifyToken = require("../middleware/verifyToken");
 const { createAccessToken, createRefreshToken } = require("../utils/jwtUtils");
 const TableStat = require("../models/tableStatModel");
-const Comment = require("../models/commentModel")
+const Comment = require("../models/commentModel");
 
 //get all users
 router.get("/user", verifyToken("admin"), async (req, res) => {
@@ -84,43 +84,40 @@ router.get("/user-stats", async (req, res) => {
     ]);
 
     //5 most coins
-    const users = await User.find()
-      .sort({ loyaltyCoins: -1 })
-      .limit(5)
-      .exec();
+    const users = await User.find().sort({ loyaltyCoins: -1 }).limit(5).exec();
     res.status(200).json({ roleCount: stats, mostCoins: users });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-})
+});
 
 //get one user
 router.get("/user/:id", async (req, res) => {
   try {
-    const userId = req.params.id
-    const user = await User.findById(userId)
-    if(!user){
-      return res.status(404).json({message: "User not found"})
+    const userId = req.params.id;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
     }
 
     return res.status(200).json({
-      data: user
-    })
+      data: user,
+    });
   } catch (error) {
-    res.status(500).json({message: error.message}) 
+    res.status(500).json({ message: error.message });
   }
-})
+});
 
 //get user by email
 router.get("/user-by-email/:email", async (req, res) => {
   try {
-    const useremail = req.params.email
-    if(!useremail){
-      return res.status(400).json({message: "Request is incomplete"})
+    const useremail = req.params.email;
+    if (!useremail) {
+      return res.status(400).json({ message: "Request is incomplete" });
     }
 
-    const user = await User.findOne({useremail: useremail})
-    if(!user){
+    const user = await User.findOne({ useremail: useremail });
+    if (!user) {
       return res.status(204).json({ message: "User not found" });
     }
 
@@ -129,11 +126,11 @@ router.get("/user-by-email/:email", async (req, res) => {
       username: user.username,
       useremail: user.useremail,
       phoneNumber: user.phoneNumber,
-    })
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message }); 
+    res.status(500).json({ message: error.message });
   }
-})
+});
 
 //register
 router.post("/user", async (req, res) => {
@@ -210,6 +207,50 @@ router.post("/login", async (req, res) => {
   }
 });
 
+//update user data
+router.put("/user", verifyToken(), async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const { username, phoneNumber } = req.body;
+    if(!username || !phoneNumber){
+      return res.status(400).json({message: "Request is incomplete"})
+    }
+    if (/\d/.test(username)) {
+      return res
+        .status(400)
+        .json({ message: "Username should not contain numbers." });
+    }
+    if (username.length > 20) {
+      return res
+        .status(400)
+        .json({ message: "Username should not be longer than 20 characters." });
+    }
+    if (!/^\d+$/.test(phoneNumber)) {
+      return res
+        .status(400)
+        .json({ message: "Phone number should only contain digits." });
+    }
+    if (phoneNumber.length > 14) {
+      return res
+        .status(400)
+        .json({ message: "Phone number should not be longer than 14 digits." });
+    }
+
+    user.username = username;
+    user.phoneNumber = phoneNumber;
+    await user.save();
+
+    res.json({ message: "User updated successfully", user });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 //delete one user
 router.delete("/user/:id", verifyToken("admin"), async (req, res) => {
   try {
@@ -225,7 +266,7 @@ router.delete("/user/:id", verifyToken("admin"), async (req, res) => {
 
     await Reservation.deleteMany({ userId: userId });
     await TableStat.deleteMany({ tableId: { $in: tableIds } });
-    await Comment.deleteMany({userId: userId})
+    await Comment.deleteMany({ userId: userId });
 
     return res.status(200).json({
       message: "User deleted",

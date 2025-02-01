@@ -24,8 +24,13 @@ const discountSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ["Available", "Used", "Expired"],
+        enum: ["Available", "Owned", "Used", "Expired"],
         default: "Available"
+    },
+    ownedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null
     }
 }, {
     timestamps: true

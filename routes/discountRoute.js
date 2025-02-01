@@ -1,12 +1,14 @@
 const router = require("express").Router();
 const verifyToken = require("../middleware/verifyToken");
 const Discount = require("../models/discountModel");
+const User = require("../models/userModel");
 
 //get all discounts
 router.get("/discount", async (req, res) => {
   try {
     const search = req.query.search || "";
     const discountType = req.query.discountType || "";
+    const status = req.query.status || "";
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 30;
     let sort = req.query.sort || "newest";
@@ -33,6 +35,11 @@ router.get("/discount", async (req, res) => {
         : null;
       match.discountType = selectedDiscountType;
     }
+    if (status) {
+      const validStatus = ["Available", "Used", "Expired"];
+      const selectedStatus = validStatus.includes(status) ? status : null;
+      match.status = selectedStatus;
+    }
 
     if (search) {
       match.discountCode = { $regex: search, $options: "i" };
@@ -50,6 +57,25 @@ router.get("/discount", async (req, res) => {
       dataCount: dataCount,
       currentPage: page,
       totalPages: Math.ceil(dataCount / selectedLimit),
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+//disc for sales
+router.get("/discount-sales", verifyToken(), async (req, res) => {
+  try {
+    const userId = req.user._id
+    const discounts = await Discount.find({ status: "Available" })
+      .sort({ discountValue: 1 })
+      .select("_id discountValue discountType costInCoins");
+
+    const userDiscounts = await Discount.find({status: "Owned", ownedBy: userId})
+
+    return res.status(200).json({
+      data: discounts,
+      userDiscounts,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -82,7 +108,8 @@ router.get("/discount-stats", async (req, res) => {
     //nearest expiry
     const currentDate = new Date();
     const nearestExpiry = await Discount.findOne({
-      expiryDate: { $gt: currentDate }, status: "Available"
+      expiryDate: { $gt: currentDate },
+      status: "Available",
     })
       .sort({ expiryDate: 1 })
       .select("expiryDate")
@@ -91,7 +118,8 @@ router.get("/discount-stats", async (req, res) => {
     let nearestExpiryData = [];
     if (nearestExpiry) {
       nearestExpiryData = await Discount.find({
-        expiryDate: nearestExpiry.expiryDate, status: "Available",
+        expiryDate: nearestExpiry.expiryDate,
+        status: "Available",
       }).exec();
     }
 
@@ -135,6 +163,61 @@ router.get("/discount/:code", async (req, res) => {
   }
 });
 
+router.put("/discount-redeem", verifyToken("customer"), async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { discountId, customerCoins } = req.body;
+
+    console.log("User ID:", userId);
+    console.log("Discount ID:", discountId);
+    console.log("Customer Coins:", customerCoins);
+
+    if (!discountId || !userId) {
+      return res.status(400).json({ message: "Invalid request parameters" });
+    }
+
+    const discount = await Discount.findById(discountId);
+    if (!discount) {
+      return res.status(404).json({ message: "Discount not found" });
+    }
+    if (discount.costInCoins > customerCoins) {
+      return res
+        .status(400)
+        .json({ message: "Sorry, your CC Point is insufficient" });
+    }
+
+    // Update user coins
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $inc: { loyaltyCoins: -discount.costInCoins } },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Update discount ownership
+    const updatedDiscount = await Discount.findByIdAndUpdate(
+      discountId,
+      { status: "Owned", ownedBy: userId },
+      { new: true }
+    );
+
+    if (!updatedDiscount) {
+      return res.status(400).json({ message: "Failed to update discount" });
+    }
+
+    return res.status(200).json({
+      message: "Discount redeemed successfully",
+      data: updatedDiscount,
+    });
+  } catch (error) {
+    console.error("Error redeeming discount:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Create discount code
 router.post("/discount", verifyToken("admin"), async (req, res) => {
   try {
@@ -160,7 +243,7 @@ router.post("/discount", verifyToken("admin"), async (req, res) => {
     }
     if (
       typeof discountCode !== "string" ||
-      !/^[a-zA-Z0-9]+$/.test(discountCode)
+      !/^[a-zA-Z0-9]+$/.test(discountCode) || discountCode.length > 10
     ) {
       return res.status(400).json({ message: "Invalid discount code" });
     }
@@ -206,15 +289,15 @@ router.post("/discount", verifyToken("admin"), async (req, res) => {
 });
 
 //update disc
-router.put('/discount/:id', verifyToken("admin"), async (req, res) => {
+router.put("/discount/:id", verifyToken("admin"), async (req, res) => {
   try {
-    const discountId = req.params.id
+    const discountId = req.params.id;
     const currentDate = new Date();
     currentDate.setHours(0, 0, 0, 0);
 
-    const discount = await Discount.findById(discountId)
-    if(!discount){
-      return res.status(404).json({message: "Discount not found"})
+    const discount = await Discount.findById(discountId);
+    if (!discount) {
+      return res.status(404).json({ message: "Discount not found" });
     }
     const {
       discountCode,
@@ -257,24 +340,30 @@ router.put('/discount/:id', verifyToken("admin"), async (req, res) => {
       return res.status(400).json({ message: "Invalid cost in coins" });
     }
 
-    await Discount.findByIdAndUpdate(discountId, {
-      discountCode,
-      expiryDate,
-      discountValue,
-      discountType, 
-      costInCoins,
-    });
+    await Discount.findByIdAndUpdate(
+      discountId,
+      {
+        discountCode,
+        expiryDate,
+        status: expiry >= currentDate ? "Available" : "Expired",
+        ownedBy: expiry >= currentDate ? null : discount.ownedBy,
+        discountValue,
+        discountType,
+        costInCoins,
+      },
+      { new: true }
+    );
     res.status(201).json({ message: "Discount updated successfully" });
   } catch (error) {
-    res.status(500).json({message: error.message})
+    res.status(500).json({ message: error.message });
   }
-})
+});
 
 //delete disc
-router.delete('/discount/:id', verifyToken("admin"), async (req, res) => {
-  const discountId = req.params.id
+router.delete("/discount/:id", verifyToken("admin"), async (req, res) => {
+  const discountId = req.params.id;
 
-  const discount = await Discount.findByIdAndDelete(discountId)
+  const discount = await Discount.findByIdAndDelete(discountId);
   if (!discount) {
     return res.status(404).json({ message: "Discount not found" });
   }
@@ -282,6 +371,6 @@ router.delete('/discount/:id', verifyToken("admin"), async (req, res) => {
   return res.status(200).json({
     message: "Discount deleted",
   });
-})
+});
 
 module.exports = router;

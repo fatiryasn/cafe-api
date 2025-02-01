@@ -38,8 +38,3 @@ cron.schedule("0 0 * * *", () => {
   updateExpiredDiscounts();
   deleteOutdatedTableStats();
 });
-
-(async () => {
-  await updateExpiredDiscounts();
-  await deleteOutdatedTableStats();
-})();

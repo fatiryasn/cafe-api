@@ -106,14 +106,8 @@ router.get("/user-loyalty", verifyToken(), async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "Cant find user" });
     }
-
-    const ordCount = await Order.countDocuments({userId: userId})
-    const resCount = await Reservation.countDocuments({ userId: userId });
-
     res.status(200).json({
       userData: user,
-      ordCount,
-      resCount,
     });
   } catch (error) {
     console.error(error)
