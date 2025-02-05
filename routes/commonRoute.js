@@ -119,22 +119,22 @@ router.get("/user-loyalty", verifyToken(), async (req, res) => {
 router.get("/total-revenue", async (req, res) => {
   try {
     const { filter } = req.query;
-
-    let startDate, endDate, groupBy;
+    let startDate, endDate, groupBy, totalData;
     const now = new Date();
 
     switch (filter) {
       case "daily":
         startDate = new Date(now);
-        startDate.setDate(startDate.getDate() - 30);
+        startDate.setDate(startDate.getDate() - 29);
         startDate.setHours(0, 0, 0, 0);
         endDate = new Date();
         endDate.setHours(23, 59, 59, 999);
         groupBy = "daily";
+        totalData = 30;
         break;
 
       case "monthly":
-        startDate = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+        startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1);
         endDate = new Date(
           now.getFullYear(),
           now.getMonth() + 1,
@@ -145,12 +145,14 @@ router.get("/total-revenue", async (req, res) => {
           999
         );
         groupBy = "monthly";
+        totalData = 12;
         break;
 
       case "yearly":
-        startDate = new Date(now.getFullYear() - 5, 0, 1);
+        startDate = new Date(now.getFullYear() - 4, 0, 1);
         endDate = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
         groupBy = "yearly";
+        totalData = 5;
         break;
 
       default:
@@ -170,7 +172,7 @@ router.get("/total-revenue", async (req, res) => {
 
     const getGroupingKey = (date) => {
       const d = new Date(date);
-      if (groupBy === "daily") return d.toISOString().split("T")[0]
+      if (groupBy === "daily") return d.toISOString().split("T")[0];
       if (groupBy === "monthly")
         return `${d.getFullYear()}-${d.getMonth() + 1}`;
       if (groupBy === "yearly") return `${d.getFullYear()}`;
@@ -182,15 +184,24 @@ router.get("/total-revenue", async (req, res) => {
     });
     reservations.forEach((reservation) => {
       const key = getGroupingKey(reservation.createdAt);
-      revenueData[key] = (revenueData[key] || 0) + 30000; 
+      revenueData[key] = (revenueData[key] || 0) + 30000;
     });
 
-    const revenueArray = Object.keys(revenueData)
-      .sort()
-      .map((key) => ({
-        date: key,
-        revenue: revenueData[key],
-      }));
+    const revenueArray = [];
+    for (let i = totalData - 1; i >= 0; i--) {
+      let key;
+      if (groupBy === "daily") {
+        const date = new Date(now);
+        date.setDate(now.getDate() - i);
+        key = date.toISOString().split("T")[0];
+      } else if (groupBy === "monthly") {
+        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        key = `${date.getFullYear()}-${date.getMonth() + 1}`;
+      } else if (groupBy === "yearly") {
+        key = (now.getFullYear() - i).toString();
+      }
+      revenueArray.push({ date: key, revenue: revenueData[key] || 0 });
+    }
 
     res.status(200).json(revenueArray);
   } catch (error) {

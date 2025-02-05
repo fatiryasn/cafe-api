@@ -155,3 +155,6 @@ Content-Type: application/json
         }
     ]
 }
+
+###
+GET http://localhost:8080/api/total-revenue?filter=yearly
